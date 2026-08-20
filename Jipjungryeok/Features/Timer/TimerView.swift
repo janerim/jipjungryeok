@@ -67,6 +67,6 @@ struct TimerView: View {
 #Preview {
     ZStack {
         Palette.background.ignoresSafeArea()
-        TimerView(model: TimerViewModel())
+        TimerView(model: TimerViewModel(store: SessionStore(inMemory: true)))
     }
 }

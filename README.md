@@ -12,7 +12,7 @@
 |---|---|---|
 | M0 | 프로젝트 골격 (XcodeGen + FocusCore + App Group + Asset Catalog) | 작성 완료 · **Mac 빌드 검증 대기** |
 | M1 | 다이얼 & 타이머 코어 | 작성 완료 · **Mac 빌드 검증 대기** |
-| M2 | 영속화 & 통계 | — |
+| M2 | 영속화 & 통계 | 작성 완료 · **Mac 빌드 검증 대기** |
 | M3 | 알림 & 상태 복구 | — |
 | M4 | 캘린더 연동 | — |
 | M5 | 위젯 & Live Activity | — |
@@ -65,18 +65,21 @@ cd FocusCore && swift test
 ├── project.yml            # XcodeGen 프로젝트 정의 (유일한 소스 오브 트루스)
 ├── FocusCore/             # 로컬 Swift Package — 플랫폼 독립 로직 (§9)
 │   ├── Sources/FocusCore/
-│   │   ├── TimerEngine.swift   # 상태 전이 + 절대시각 계산 (§6)
-│   │   ├── DialGeometry.swift  # 다이얼 각도 ↔ 분 변환 (§4.1)
-│   │   ├── TimeDisplay.swift   # 시간 표기 규칙 (§4.1, §4.2)
-│   │   ├── Models/             # RunningState, SessionRecord
-│   │   └── DesignSystem/       # Palette, Typography, Metrics
+│   │   ├── TimerEngine.swift     # 상태 전이 + 절대시각 계산 (§6)
+│   │   ├── DialGeometry.swift    # 다이얼 각도 ↔ 분 변환 (§4.1)
+│   │   ├── StatsCalculator.swift # 월요일 기준 집계 (§4.2)
+│   │   ├── TimeDisplay.swift     # 시간·날짜 표기 규칙 (§4.1, §4.2)
+│   │   ├── Calendar+Focus.swift  # firstWeekday 고정 (§1-1)
+│   │   ├── Models/               # RunningState, SessionRecord, StatsSummary, StatsSnapshot
+│   │   └── DesignSystem/         # Palette, Typography, Metrics
 │   └── Tests/FocusCoreTests/
 ├── Shared/                # 앱·위젯 두 타겟에 함께 컴파일되는 것
 │   ├── Colors.xcassets/   # 디자인 토큰 6종 (라이트/다크)
 │   └── AppGroup.swift     # App Group 식별자와 공유 저장소
 ├── Jipjungryeok/          # iOS 앱 타겟
 │   ├── App/               # 진입점, RootView(3페이지), 햅틱, 페이지 인디케이터
-│   └── Features/          # Timer(구현) / Stats·Settings(자리만)
+│   ├── Store/             # FocusSession(@Model), SessionStore
+│   └── Features/          # Timer·Stats(구현) / Settings(자리만)
 └── FocusWidgets/          # 위젯 익스텐션 타겟
 ```
 
@@ -91,6 +94,22 @@ cd FocusCore && swift test
 덕분에 실제로 25분을 기다리거나 기기 시간대를 바꿔 보지 않고도 일시정지 누적,
 앱 강제 종료 후 복귀, 시계 역행 같은 §12 수용 기준을 단위 테스트로 검증할 수 있다.
 1초 `Timer` 는 앱 타깃의 `TimerViewModel` 에만 있고, 화면을 다시 그리라는 신호일 뿐이다.
+
+## 통계 집계
+
+같은 이유로 [StatsCalculator.swift](FocusCore/Sources/FocusCore/StatsCalculator.swift) 도
+SwiftData 를 모른다. 저장소에서 꺼낸 `SessionRecord` 배열과 기준 시각만 받는다.
+
+두 가지를 기억할 것:
+
+- **날짜 판정은 언제나 `startAt` 기준이다.** 23:50 에 시작해 00:15 에 끝난 세션은
+  전부 시작일에 귀속되며 두 날에 나눠 배분하지 않는다 (§4.2).
+- **주는 월요일에 시작한다** (§1-1). `Calendar.current` 를 그대로 쓰면 기기 지역 설정에
+  따라 일요일 시작으로 바뀌므로, [Calendar+Focus.swift](FocusCore/Sources/FocusCore/Calendar+Focus.swift)
+  에서 `firstWeekday` 를 고정한다. 테스트도 시간대를 서울로 못박는다.
+
+스토어는 App Group 컨테이너에 둔다 (§5). 위젯이 SwiftData 를 직접 열지는 않고,
+M5 에서 `StatsSnapshot` 을 App Group `UserDefaults` 로 넘겨받는다 (§8.1).
 
 **`FocusCore` 분리는 워치를 안 만들더라도 유지한다.** 타이머 로직을 앱 타겟 안에
 넣어버리면 나중에 워치를 붙일 때 전부 뜯어내야 하고, 순수 로직 단위 테스트도 어려워진다.

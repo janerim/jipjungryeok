@@ -16,11 +16,12 @@ final class TimerViewModel {
     /// 화면 갱신 기준 시각. 1초마다 그리고 포그라운드 복귀 때 갱신된다.
     private(set) var now: Date = .now
 
-    /// 방금 끝난 세션. M2 에서 SessionStore 가 여기서 받아 저장한다.
-    /// 지금은 저장 경로가 없어 마지막 1건만 들고 있다.
-    private(set) var lastFinished: SessionRecord?
-
     @ObservationIgnored private var ticker: Timer?
+    @ObservationIgnored private let store: SessionStore
+
+    init(store: SessionStore) {
+        self.store = store
+    }
 
     // MARK: - 화면이 읽는 값
 
@@ -41,7 +42,7 @@ final class TimerViewModel {
 
         // 진행 중/일시정지 상태였다면 여기서 기존 세션이 정리된다 (§4.1, §6-4)
         if let finished = engine.setPlannedMinutes(minutes, at: .now) {
-            lastFinished = finished
+            store.save(finished)
         }
 
         if !wasIdle {
@@ -78,7 +79,7 @@ final class TimerViewModel {
         guard engine.phase != .idle else { return }
 
         if let finished = engine.stop(at: .now) {
-            lastFinished = finished
+            store.save(finished)
         }
         Haptics.warning()
         stopTicking()
@@ -128,14 +129,15 @@ final class TimerViewModel {
     // MARK: -
 
     private func finishCompleted(_ record: SessionRecord) {
-        lastFinished = record
         stopTicking()
         setScreenAwake(false)
+
+        // 저장이 곧 통계 갱신이다. SessionStore 가 save 안에서 reload 까지 한다.
+        store.save(record)
 
         // §6-3 — 알림음 없이 햅틱만
         Haptics.success()
 
-        // M2: SessionStore 에 저장
         // M4: 캘린더 이벤트 생성
         // M5: 통계 스냅샷 갱신 + 위젯 리로드 + Live Activity 종료
     }

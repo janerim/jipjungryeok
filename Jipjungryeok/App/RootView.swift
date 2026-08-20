@@ -16,8 +16,10 @@ struct RootView: View {
         case stats, timer, settings
     }
 
+    let store: SessionStore
+    let timerModel: TimerViewModel
+
     @State private var page: Page = .timer
-    @State private var timerModel = TimerViewModel()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -26,7 +28,7 @@ struct RootView: View {
                 .ignoresSafeArea()
 
             TabView(selection: $page) {
-                StatsView()
+                StatsView(store: store)
                     .tag(Page.stats)
                 TimerView(model: timerModel)
                     .tag(Page.timer)
@@ -39,21 +41,24 @@ struct RootView: View {
                 .padding(.bottom, 10)
         }
         .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
             // §6-2 — 포그라운드로 돌아오면 절대시각으로 다시 계산하고,
             // 종료 시각이 이미 지났으면 그 시점으로 완료 처리한다.
-            if newPhase == .active {
-                timerModel.refresh()
-            }
+            timerModel.refresh()
+            // 자정을 넘겨 돌아왔다면 "오늘" 이 달라져 있다.
+            store.reload()
         }
     }
 }
 
 #Preview("라이트") {
-    RootView()
+    let store = SessionStore(inMemory: true)
+    return RootView(store: store, timerModel: TimerViewModel(store: store))
         .preferredColorScheme(.light)
 }
 
 #Preview("다크") {
-    RootView()
+    let store = SessionStore(inMemory: true)
+    return RootView(store: store, timerModel: TimerViewModel(store: store))
         .preferredColorScheme(.dark)
 }

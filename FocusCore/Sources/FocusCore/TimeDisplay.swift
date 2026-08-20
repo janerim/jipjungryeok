@@ -1,7 +1,12 @@
 import Foundation
 
 /// 시간 문자열 표기. 앱·위젯(·나중에 워치)이 같은 규칙을 써야 하므로 여기 한 곳에만 둔다.
+///
+/// 날짜 표기는 `DateFormatter` 대신 `Calendar` 로 구성 요소를 뽑아 직접 조립한다.
+/// 포맷 문자열은 기기 지역 설정에 따라 결과가 달라져서 단위 테스트로 못박기 어렵다.
 public enum TimeDisplay {
+
+    // MARK: - 길이
 
     /// §4.1 타이머 하단 큰 숫자.
     ///
@@ -21,5 +26,39 @@ public enum TimeDisplay {
     public static func hhmm(_ seconds: Int) -> String {
         let value = max(0, seconds)
         return String(format: "%02d:%02d", value / 3600, (value % 3600) / 60)
+    }
+
+    /// §4.2 회고의 집중 분. 반올림한 정수만 돌려준다.
+    public static func minutes(_ seconds: Int) -> Int {
+        Int((Double(max(0, seconds)) / 60).rounded())
+    }
+
+    /// §4.2 시간 요약의 합계. `3시간 5분`.
+    /// 한 시간이 안 되면 `35분` 으로만 적는다 — `0시간 35분` 은 읽기 나쁘다.
+    public static func hourMinuteText(_ seconds: Int) -> String {
+        let value = max(0, seconds)
+        let hours = value / 3600
+        let minutes = (value % 3600) / 60
+        return hours == 0 ? "\(minutes)분" : "\(hours)시간 \(minutes)분"
+    }
+
+    // MARK: - 날짜
+
+    /// §4.2 회고 상단. `8월 20일`
+    public static func monthDay(_ date: Date, calendar: Calendar = .focus) -> String {
+        let parts = calendar.dateComponents([.month, .day], from: date)
+        return "\(parts.month ?? 0)월 \(parts.day ?? 0)일"
+    }
+
+    /// §4.2 회고 하단 종료 시각. `14:05`
+    public static func clockTime(_ date: Date, calendar: Calendar = .focus) -> String {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+    }
+
+    /// §4.2 차트 축 아래 라벨. `2026년 8월`
+    public static func yearMonth(_ date: Date, calendar: Calendar = .focus) -> String {
+        let parts = calendar.dateComponents([.year, .month], from: date)
+        return "\(parts.year ?? 0)년 \(parts.month ?? 0)월"
     }
 }
