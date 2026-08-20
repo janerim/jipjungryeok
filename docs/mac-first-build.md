@@ -1,10 +1,39 @@
 # Mac 첫 빌드 체크리스트
 
-M0~M2 코드는 Windows 에서 작성되어 **한 번도 컴파일된 적이 없다.**
+M0~M2 코드는 Windows 에서 작성되어 한 번도 컴파일된 적이 없었다.
 이 문서는 그 코드를 처음 빌드하는 절차와, 미리 짚어둔 실패 예상 지점을 정리한 것이다.
 
-첫 빌드는 "되는지 보는 일" 이 아니라 **에러를 걷어내는 작업**이라고 생각하고 시작할 것.
-한 번에 다 통과하면 운이 좋은 것이다.
+---
+
+## 첫 빌드 결과 (2026-08-20, Xcode 26.6 / Swift 6.3)
+
+**통과했다.** `swift test` 66/66, 앱·위젯 빌드 에러 0 · 경고 0, 시뮬레이터 실행 정상.
+
+미검증이라던 `.swift` 파일 약 30개 중 **고쳐야 했던 것은 하나도 없었다.**
+아래 "3단계 예상 실패 지점" 의 1~3번(SwiftData, 동시성/Observation, SwiftUI 세부 문법)은
+전부 그대로 통과했다. 실제로 걸린 것은 코드가 아니라 빌드 설정과 환경이었다:
+
+| 걸린 것 | 증상 | 고친 곳 |
+|---|---|---|
+| `Package.swift` 에 macOS 플랫폼 없음 | `swift test` 가 배포 타깃 10.13 으로 빌드돼 `Color`(10.15+)·`Date.now`(12+) 가 전부 막힘 | `platforms` 에 `.macOS(.v14)` 추가 |
+| 스킴이 패키지 테스트 타겟 참조 | `xcodegen generate` 가 validation 에러로 죽음 | `project.yml` 스킴에서 `FocusCoreTests` 제거 |
+| iOS 플랫폼 미설치 | destination 이 하나도 안 잡힘 (`iOS 26.5 is not installed`) | `xcodebuild -downloadPlatform iOS` (8.5GB) |
+| 시뮬레이터 실행 시 무서명 | 예상 지점 4번 그대로 — `AppGroup.containerURL` 에서 `fatalError` 즉사 | `CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual` 로 빌드 |
+
+마지막 항목은 이 문서가 미리 경고한 바로 그 지점이었다. 서명 인증서가 없어도
+시뮬레이터는 ad-hoc 서명으로 entitlement 를 붙일 수 있다. 실기기는 여전히 팀이 필요하다.
+
+### 눈으로 확인된 것
+
+4단계 체크리스트 중 스크린샷으로 확인된 항목:
+
+- 다이얼 부채꼴이 12시에서 시계방향으로 채워짐 — `DialView.sector` 의 `clockwise` 는 손댈 필요 없음
+- 흰 핸들이 부채꼴 끝단에 정확히 붙음
+- 눈금 숫자 0, 5, 10 … 55 가 시계방향
+- 다크모드가 재시작 없이 즉시 전환되고, 눈금과 배경 대비가 살아 있음
+
+**아직 확인 못 한 것:** 드래그·탭·길게누르기 같은 제스처 항목, 페이지 스와이프 충돌,
+통계 화면, 위젯 다크 팔레트. 전부 사람이 직접 만져봐야 한다.
 
 ---
 
@@ -13,9 +42,14 @@ M0~M2 코드는 Windows 에서 작성되어 **한 번도 컴파일된 적이 없
 ```bash
 xcode-select -p          # Xcode 경로가 나와야 한다
 brew install xcodegen
+xcodebuild -showdestinations -scheme Jipjungryeok   # 시뮬레이터가 목록에 나오는지
 ```
 
 Xcode 15 이상이 필요하다 (iOS 17 타깃, SwiftData, `@Observable`, `#Preview`).
+
+destination 목록이 비어 있고 `iOS <버전> is not installed` 만 나오면 Xcode 만 깔고
+iOS 플랫폼을 안 받은 상태다. `xcodebuild -downloadPlatform iOS` 로 받는다 (8GB 대, 오래 걸림).
+Xcode 를 새로 깔거나 올린 직후에 이렇게 되기 쉽다.
 
 ---
 

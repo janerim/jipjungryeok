@@ -19,6 +19,9 @@ xcuserdata/
 *.xcodeproj/
 *.xcworkspace/
 *.entitlements
+# Info.plist 도 project.yml 의 info: 블록에서 생성된다. 직접 고치지 말 것.
+Jipjungryeok/Info.plist
+FocusWidgets/Info.plist
 
 # --- Swift Package Manager ---
 .build/

@@ -123,10 +123,12 @@ schemes:
         Jipjungryeok: all
     run:
       config: Debug
+    ## 테스트 타겟을 일부러 비워 둔다. 자동 테스트는 `cd FocusCore && swift test` 하나로 간다.
+    ## FocusCoreTests 는 로컬 패키지 안에 있어 XcodeGen 이 스킴에 넣지 못하고
+    ## (프로젝트 타겟만 참조 가능 — 넣으면 generate 자체가 validation 에러로 죽는다),
+    ## 앱 타겟용 테스트 번들은 만들지 않기로 했다. 사유는 CLAUDE.md 규칙 1.
     test:
       config: Debug
-      targets:
-        - FocusCoreTests
     profile:
       config: Release
     analyze:

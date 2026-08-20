@@ -8,34 +8,22 @@ iPhone 전용, SwiftUI, 외부 라이브러리 없음.
 
 ---
 
-## ⚠️ 가장 먼저 알아야 할 것
-
-**M0~M2 코드는 Windows 에서 작성되었고, Swift 컴파일러를 한 번도 통과한 적이 없다.**
-
-작성 환경에 Swift 툴체인도 Xcode 도 없었다. 검증된 것은 에셋 카탈로그 JSON,
-`project.yml` 구조, 그리고 다이얼 기하·날짜 산수를 따로 계산해 대조한 것뿐이다.
-`.swift` 파일 약 30개는 전부 미검증이다.
-
-따라서 **Mac 에서의 첫 빌드는 "잘 되는지 확인" 이 아니라 "에러를 걷어내는 작업"** 이다.
-절차와 예상 실패 지점은 [docs/mac-first-build.md](docs/mac-first-build.md) 에 정리해 두었다.
-
-첫 빌드가 통과하고 나면 이 섹션을 지우고 아래 진행 상황 표를 갱신할 것.
-
----
-
 ## 진행 상황
 
 | 마일스톤 | 내용 | 상태 |
 |---|---|---|
-| M0 | 프로젝트 골격 | 작성 완료 · 빌드 미검증 |
-| M1 | 다이얼 & 타이머 코어 | 작성 완료 · 빌드 미검증 |
-| M2 | 영속화 & 통계 | 작성 완료 · 빌드 미검증 |
+| M0 | 프로젝트 골격 | 완료 · 빌드 검증됨 |
+| M1 | 다이얼 & 타이머 코어 | 완료 · 빌드 검증됨 |
+| M2 | 영속화 & 통계 | 완료 · 빌드 검증됨 |
 | M3 | 알림 & 상태 복구 | 미착수 |
 | M4 | 캘린더 연동 | 미착수 |
 | M5 | 위젯 & Live Activity | 미착수 |
 | M6 | Apple Watch (선택, 1차 릴리즈 이후) | 미착수 |
 
 각 마일스톤 범위는 §11, 완료 판정 기준은 §12.
+
+첫 빌드 결과와 환경 설정에서 걸린 지점은 [docs/mac-first-build.md](docs/mac-first-build.md)
+맨 위에 정리해 두었다. M3 이후 §12 눈 확인 항목은 아직 사람이 직접 봐야 하는 것들이 남아 있다.
 
 ---
 
@@ -49,11 +37,19 @@ cd FocusCore && swift test
 xcodegen generate
 open Jipjungryeok.xcodeproj
 
-# 전체 테스트
-xcodebuild test -scheme Jipjungryeok -destination 'platform=iOS Simulator,name=iPhone 15'
+# 앱·위젯 빌드. 시뮬레이터 실행에는 ad-hoc 서명이 필요하다 —
+# 서명이 빠지면 App Group entitlement 가 안 붙고 SessionStore 가 fatalError 로 즉사한다.
+xcodebuild build -scheme Jipjungryeok \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual
 ```
 
 `brew install xcodegen` 이 선행돼야 한다.
+
+`xcodebuild test` 는 **쓰지 않기로 했다.** 자동 테스트는 `swift test` 하나로 간다.
+`FocusCoreTests` 는 로컬 패키지 안에 있어서 XcodeGen 이 스킴에 넣지 못하고(넣으면
+generate 가 validation 에러로 죽는다), 스킴에 걸 앱 타겟 테스트 번들은 만들지 않는다.
+이유는 아래 규칙 1.
 
 ---
 
@@ -75,6 +71,12 @@ FocusWidgets/     ← 위젯 익스텐션 타겟
 이 규칙 덕분에 25분을 실제로 기다리거나 기기 시간대를 바꾸지 않고도 §12 수용 기준을
 단위 테스트로 검증할 수 있다. 시간·집계 관련 로직을 화면 코드에 넣고 싶어지면
 거의 항상 잘못된 판단이다.
+
+**따라서 자동 테스트는 `FocusCore` 에만 둔다.** 앱 타겟용 테스트 번들은 만들지 않는다 —
+거기서 검증할 `SessionStore`·`TimerViewModel`·`Haptics` 는 시뮬레이터가 떠 있어야
+의미가 있어서, 얻는 것에 비해 굴리는 비용이 크다. 검증하고 싶은 로직이 생기면
+**앱 타겟에 테스트를 붙이지 말고 그 로직을 `FocusCore` 로 옮긴다.** 그게 이 분리의 목적이다.
+화면에서만 확인되는 것들(제스처, 다크모드, 위젯)은 테스트 대상이 아니라 §12 눈 확인 항목이다.
 
 들어가는 것: `TimerEngine`, `DialGeometry`, `StatsCalculator`, `TimeDisplay`,
 모델(값 타입), 디자인 토큰.

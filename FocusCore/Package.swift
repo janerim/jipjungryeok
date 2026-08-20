@@ -12,7 +12,12 @@ let package = Package(
     name: "FocusCore",
     platforms: [
         .iOS(.v17),
-        .watchOS(.v10)
+        .watchOS(.v10),
+        // 앱은 macOS 에서 돌지 않지만, `swift test` 는 호스트(macOS)용으로 빌드한다.
+        // 이 선언이 없으면 배포 타깃이 10.13 으로 떨어져 Color(10.15+)·Date.now(12+) 가
+        // 전부 "only available in macOS ..." 로 막히고, 시뮬레이터 없이 로직만 검증하는
+        // 이 패키지의 존재 이유가 사라진다.
+        .macOS(.v14)
     ],
     products: [
         .library(name: "FocusCore", targets: ["FocusCore"])
