@@ -3,6 +3,7 @@
 원형 다이얼을 돌려 시간을 맞추고 집중하는 미니멀 타이머 앱. iPhone 전용, SwiftUI.
 
 기획 전문은 [docs/spec.md](docs/spec.md).
+**Mac 에서 처음 빌드한다면 [docs/mac-first-build.md](docs/mac-first-build.md) 부터 볼 것.**
 
 ---
 
