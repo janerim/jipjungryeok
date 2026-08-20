@@ -1,0 +1,32 @@
+# --- Xcode ---
+build/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# --- XcodeGen ---
+# project.yml 이 유일한 소스 오브 트루스. .xcodeproj 와 entitlements 는 생성물이다.
+*.xcodeproj/
+*.xcworkspace/
+*.entitlements
+
+# --- Swift Package Manager ---
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# --- macOS / Windows ---
+.DS_Store
+Thumbs.db
+desktop.ini

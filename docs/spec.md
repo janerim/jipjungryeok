@@ -1,0 +1,485 @@
+# 집중력 (Jipjungryeok) — 기초 기획서
+
+> 작성일: 2026-08-20
+> 대상: Claude Code 구현 지시서
+> 플랫폼: iOS (iPhone 전용), SwiftUI
+
+---
+
+## 1. 한 줄 요약
+
+원형 다이얼을 돌려 시간을 맞추고 집중하는 미니멀 타이머 앱.
+완료된 세션은 자동으로 통계에 쌓이고, iPhone 캘린더에 기록되며, 홈/잠금화면 위젯으로 확인할 수 있다.
+
+---
+
+## 1-1. 확정 사항 (2026-08-20)
+
+| 항목 | 결정 |
+|---|---|
+| 앱 이름 | **집중력** (한글 이름) / 로마자 `jipjungryeok` |
+| 번들 ID | **`com.janerim.jipjungryeok`** (확정) |
+| 요일 시작 / 주간 세션 집계 | **월요일 기준** |
+| 화면 전환 | **좌우 스와이프** (타이머 ↔ 통계) |
+| 완료 시 알림음 | **무음 + 햅틱만** (앱을 켜둔 채 사용하는 전제) |
+| 다크모드 | **1차 버전부터 지원** (시스템 설정 따름) |
+| Apple Watch | **1차 제외 → M6 선택 확장** (§8-1에 향후 참고용으로 유지) |
+| iPad / Mac | 미지원 |
+
+**식별자 (확정)**
+
+| 대상 | 값 |
+|---|---|
+| iOS 앱 | `com.janerim.jipjungryeok` |
+| 위젯 익스텐션 | `com.janerim.jipjungryeok.widgets` |
+| App Group | `group.com.janerim.jipjungryeok` |
+| iCloud 컨테이너 | 사용 안 함 |
+| (향후) 워치 앱 | `com.janerim.jipjungryeok.watchkitapp` |
+
+**이름 규칙**
+
+- `CFBundleDisplayName` = `집중력` (홈화면·App Store에 보이는 이름)
+- **Xcode 프로젝트·타깃·폴더·소스 파일명은 영문 `Jipjungryeok`로 유지한다.** 한글 경로는 빌드 스크립트·CI·아카이브 단계에서 인코딩 문제를 일으킬 수 있다. 화면에 보이는 문자열만 한글로 둔다.
+- 로마자 표기는 기존 `chaekryeok`(책력)과 동일하게 **철자 기반**으로 통일한다 (발음 기반 표준 표기 `jipjungnyeok`가 아님)
+
+Apple Developer Program 유료 멤버십 보유 → App Group 사용 가능.
+
+---
+
+## 2. 설계 원칙
+
+1. **설정을 만들지 않는다.** 테마, 배경음악, 알림음 선택, 세션 종류 관리 같은 옵션을 만들지 않는다.
+2. **세션은 "집중" 하나뿐이다.** 휴식/짧은휴식 등 다중 세션 개념 없음. 자동 순환(포모도로 사이클) 없음.
+3. **화면은 3개로 끝낸다.** 타이머 / 통계 / (최소한의) 설정.
+4. **시간 계산은 항상 절대시각 기준으로 한다.** 백그라운드·화면 꺼짐·앱 종료에도 남은 시간이 어긋나면 안 된다.
+
+---
+
+## 3. 범위
+
+### 포함 (In scope)
+- 원형 다이얼 타이머 (설정 / 실행 / 일시정지 / 중지)
+- 세션 자동 기록 및 통계 (오늘·이번 주·이번 달·최근 7일·최근 28일)
+- 최근 세션 회고 (최근 3건)
+- 일별 막대 차트 + 시간 집중 횟수·합계
+- iPhone 캘린더(EventKit) 자동 기록
+- 홈화면 위젯 + 잠금화면 위젯 + Live Activity(실행 중 남은 시간)
+- 종료 로컬 알림
+- 다크모드 / 라이트모드 자동 대응
+
+### 선택 확장 (1차 제외, 구조만 열어둠)
+- **Apple Watch 앱** — §8-1에 설계를 남겨두되 1차 버전에서는 구현하지 않는다. `FocusCore` 패키지 분리(§9)만 지켜두면 나중에 붙일 때 iOS 코드를 건드릴 필요가 없다.
+
+### 제외 (Out of scope — 만들지 말 것)
+- 테마/색상 선택, 배경음악, 알림음 선택
+- 세션 추가·편집·삭제 UI, 태그/카테고리
+- 로그인, 서버, 계정, 클라우드 동기화(iCloud 백업 제외)
+- 프리미엄/결제/광고
+- 습관(habit) 트래커, 통계 상세 페이지
+- iPad·macOS 대응 (1차 버전 기준)
+
+---
+
+## 4. 화면 정의
+
+### 4.0 화면 전환 구조
+
+```
+[ 통계 ]  ←스와이프→  [ 타이머 ]  ←스와이프→  [ 설정 ]
+                        (초기 화면)
+```
+
+- `TabView(selection:)` + `.tabViewStyle(.page(indexDisplayMode: .never))`
+- 페이지 인디케이터는 시스템 점 대신 하단에 3px 높이의 미니멀 인디케이터를 직접 그린다 (`inkSecondary`, 현재 페이지만 `ink`)
+- 앱 실행 시 항상 가운데(타이머) 페이지에서 시작
+
+**⚠️ 제스처 충돌 처리 (중요)**
+
+다이얼을 잡은 원형 드래그와 페이지 좌우 스와이프가 같은 수평 이동을 두고 경쟁한다. 다음 규칙으로 해결한다:
+
+- 다이얼 영역(중심에서 반지름 + 40pt 여유) 안에서 시작한 드래그는 **다이얼이 독점**한다 → `.highPriorityGesture(dialDragGesture)`
+- 다이얼 영역 밖에서 시작한 수평 드래그만 페이지 전환으로 처리
+- 타이머가 `running` 또는 `paused` 상태일 때도 페이지 스와이프는 정상 동작해야 한다 (통계를 보다가 돌아와도 세션이 유지됨)
+- 통계 화면은 세로 스크롤이므로 수직 제스처 우선, 수평은 페이지 전환
+
+### 4.1 타이머 화면 (메인, 앱 실행 시 첫 화면)
+
+**구성 (위 → 아래)**
+1. 상단 상태 표시: 초록 점 + `🎯 집중` (상태 텍스트, 항상 고정 — 세션이 하나이므로 선택 UI 없음)
+2. 중앙 원형 다이얼 (60분 스케일)
+3. 하단 큰 숫자 (남은 시간)
+
+**다이얼 스펙**
+- 12시 방향이 `0`, 시계방향으로 60분 한 바퀴
+- 눈금: 1분마다 짧은 틱, 5분마다 굵은 틱 + 숫자 라벨(0, 5, 10 … 55)
+- 설정/남은 시간은 12시 방향부터 시계방향으로 채워지는 **부채꼴(sector)** 로 표현
+- 부채꼴 끝단에 흰색 원형 핸들(drag handle)
+- 최소 1분, 최대 60분, **1분 단위 스냅**
+- 하단 숫자: 남은 시간이 1분 이상이면 `분`(정수, 올림), 60초 미만이면 `MM:SS`
+
+**인터랙션 규칙**
+
+| 상태 | 동작 | 결과 |
+|---|---|---|
+| idle | 다이얼 드래그 | 시간 설정, 부채꼴 실시간 갱신 (햅틱: 1분 스냅마다 selection) |
+| idle | 드래그 종료(손 뗌) | **즉시 카운트다운 시작** |
+| running | 다이얼 탭 | 일시정지 |
+| paused | 다이얼 탭 | 재개 |
+| paused | 다이얼 드래그 | 세션 취소 후 새 시간 설정 (기존 진행분은 §6 규칙대로 처리) |
+| running/paused | 길게 누르기(0.6s) | 세션 중지 → idle, 햅틱 warning |
+| running | 남은 시간 0 도달 | 완료 처리 (§6) |
+
+- 실행 중에는 화면 자동 잠금 비활성화(`UIApplication.isIdleTimerDisabled = true`), 종료 시 반드시 복구
+
+### 4.2 통계 화면
+
+세로 스크롤 단일 화면. 위에서부터:
+
+1. **추이** — 2행 그리드
+   - 1행: 오늘 / 이번 주 / 이번 달
+   - 2행: 최근 7일 / 최근 28일
+   - 각 표기: `HH:mm` (예: 35분 → `00:35`, 3시간 5분 → `03:05`)
+   - "이번 주"는 월요일 시작, "이번 달"은 달력상 1일 시작, "최근 7/28일"은 오늘 포함 롤링 윈도우
+   - **모든 집계는 `session.startAt` 기준으로 날짜를 판정한다.** 23:50에 시작해 00:15에 끝난 세션은 전부 시작일(전날)에 귀속되며, 두 날에 나눠 배분하지 않는다. 차트·회고·시간 요약도 동일 규칙
+2. **회고** — 최근 완료 세션 3건, 가로 3분할
+   - 상단: 날짜(`M월 d일`) / 중앙: 집중 분(정수) / 하단: 종료 시각(`HH:mm`)
+3. **차트** — 일별 막대 그래프
+   - X축: 최근 10일, **최신 날짜가 왼쪽**(오른쪽으로 갈수록 과거)
+   - Y축: 0~8시간 (데이터 최댓값이 8을 넘으면 상단을 2시간 단위로 확장)
+   - 축 아래에 `yyyy년 M월` 라벨
+4. **시간 요약** — `집중 횟수 N회`, `합계 N시간 N분` (차트에 표시된 달 기준)
+
+### 4.3 설정 화면 (타이머에서 오른쪽으로 스와이프)
+
+최소 구성만. 리스트 4줄:
+- 캘린더 기록 (Toggle) — 켤 때 권한 요청
+- 알림 허용 (권한 미허용 상태에서만 노출되는 안내 배너 + 시스템 설정 이동 버튼)
+- 데이터 초기화 (확인 alert 2단계)
+- 앱 버전
+
+---
+
+## 5. 데이터 모델
+
+SwiftData 사용. App Group 컨테이너에 저장하여 위젯에서도 읽는다.
+
+```swift
+@Model
+final class FocusSession {
+    @Attribute(.unique) var id: UUID
+    var startAt: Date          // 세션 시작 절대시각
+    var endAt: Date            // 종료(완료 또는 중지) 절대시각
+    var plannedSeconds: Int    // 사용자가 다이얼로 설정한 시간
+    var actualSeconds: Int     // 실제 집중한 시간 (일시정지 구간 제외)
+    var isCompleted: Bool      // 끝까지 갔으면 true, 중도 중지면 false
+    var calendarEventID: String?  // EventKit 이벤트 식별자 (기록 실패 시 nil)
+}
+```
+
+**진행 중 상태(앱 강제 종료 대비)** — `UserDefaults(suiteName:)` 에 저장:
+
+```swift
+struct RunningState: Codable {
+    var sessionID: UUID
+    var startAt: Date
+    var plannedSeconds: Int
+    var accumulatedPauseSeconds: Int
+    var pausedAt: Date?        // nil이면 running
+}
+```
+
+**위젯용 스냅샷** — 세션 저장 시마다 App Group `UserDefaults`에 갱신:
+
+```swift
+struct StatsSnapshot: Codable {
+    var todaySeconds: Int
+    var weekSeconds: Int
+    var monthSeconds: Int
+    var last7Days: [Int]       // [오늘, 어제, ...] 초 단위
+    var updatedAt: Date
+}
+```
+
+---
+
+## 6. 타이머 동작 규칙 (핵심)
+
+1. **남은 시간 = `plannedSeconds - (now - startAt) + accumulatedPauseSeconds`**
+   1초 Timer는 화면 갱신 트리거일 뿐, 값 자체는 항상 `Date` 차이로 재계산한다. 절대로 `remaining -= 1` 방식으로 누적하지 않는다.
+2. 앱이 포그라운드로 복귀하면(`scenePhase == .active`) 즉시 재계산하고, 이미 종료 시각이 지났으면 그 시점에 완료 처리한다.
+3. **완료 처리 시:**
+   - **알림음을 사용하지 않는다.** 포그라운드면 `UINotificationFeedbackGenerator().notificationOccurred(.success)` 햅틱만, 백그라운드면 무음 로컬 알림 배너만 (`content.sound = nil`)
+   - 포그라운드에서 알림 배너가 중복으로 뜨지 않도록 `UNUserNotificationCenterDelegate`의 `willPresent`에서 포그라운드일 때는 `[]`를 반환한다
+   - `FocusSession` 저장 (`isCompleted = true`)
+   - 캘린더 이벤트 생성 (§7)
+   - 통계 스냅샷 갱신 + `WidgetCenter.shared.reloadAllTimelines()`
+   - Live Activity 종료
+   - idle 상태로 복귀 (다이얼은 직전 설정 시간을 유지)
+4. **중도 중지 시:** 실제 집중 시간이 **60초 이상이면 저장**(`isCompleted = false`, 캘린더에도 기록), 60초 미만이면 저장하지 않고 버린다.
+5. 종료 알림은 세션 시작 시 `UNTimeIntervalNotificationTrigger`로 예약하고, 일시정지·중지 시 반드시 `removePendingNotificationRequests`로 취소한다. 재개 시 남은 시간으로 재예약.
+
+---
+
+## 7. iPhone 캘린더 연동
+
+- 프레임워크: **EventKit**
+- 권한: iOS 17+ 기준 `requestWriteOnlyAccessToEvents()` 사용 (읽기 권한은 요청하지 않는다 — 쓰기 전용이면 충분하고 심사·프라이버시에서 유리)
+- `Info.plist`: `NSCalendarsWriteOnlyAccessUsageDescription`
+  값 예시: `완료한 집중 세션을 캘린더에 자동으로 기록하기 위해 사용합니다.`
+- **전용 캘린더 생성**: 앱 최초 연동 시 `집중` 이름의 `EKCalendar`를 생성한다.
+  - source 우선순위: iCloud(`.calDAV` 중 title이 "iCloud") → `.local`
+  - 생성된 `calendarIdentifier`는 UserDefaults에 저장. 다음 실행 시 존재 여부를 확인하고, 사용자가 삭제했으면 재생성한다.
+- **이벤트 스펙**
+
+  | 필드 | 값 |
+  |---|---|
+  | title | `🎯 집중 {N}분` (중도 중지 시 `🎯 집중 {N}분 (중단)`) |
+  | startDate | `session.startAt` |
+  | endDate | `session.endAt` |
+  | calendar | 전용 "집중" 캘린더 |
+  | alarms | 없음 |
+  | notes | 없음 |
+
+- 저장 성공 시 `eventIdentifier`를 `FocusSession.calendarEventID`에 보관
+- **실패 처리**: 권한 거부/오류 시 세션 저장은 정상 진행하고, 실패한 항목을 pending 큐에 넣어 다음 앱 실행 시 1회 재시도한다. 사용자에게 모달을 띄우지 않는다(설정 화면에서만 상태 노출).
+- 설정에서 캘린더 기록을 끄면 이후 세션은 기록하지 않는다. **이미 만든 과거 이벤트는 삭제하지 않는다.**
+
+---
+
+## 8. 위젯
+
+App Group: `group.{BUNDLE_ID}` — 앱 타깃과 위젯 익스텐션 모두에 추가.
+
+### 8.1 홈화면 위젯
+
+| 크기 | 내용 |
+|---|---|
+| `systemSmall` | 오늘 집중 시간(`HH:mm`) + 미니 원형 게이지 + 탭 시 앱 실행 |
+| `systemMedium` | 오늘 시간 + 최근 7일 미니 막대 차트 |
+
+- 타임라인 정책: `.after(다음 자정)` 1개 엔트리 + 세션 완료 시 `reloadAllTimelines()`로 즉시 갱신
+- 데이터 소스는 SwiftData 직접 조회가 아니라 §5의 `StatsSnapshot` (가볍고 실패 위험 낮음)
+
+### 8.2 잠금화면 위젯
+
+- `accessoryCircular`: 오늘 집중 시간 게이지 (기준값 없이 시간 숫자 + 링)
+- `accessoryRectangular`: `오늘 00:35 · 이번 주 02:10`
+
+### 8.3 Live Activity (실행 중 표시) — 중요
+
+실행 중 남은 시간은 일반 위젯이 아니라 **ActivityKit**으로 처리한다. (일반 위젯은 초 단위 갱신 불가)
+
+- 세션 시작 시 `Activity.request()`, 완료/중지 시 `end(dismissalPolicy: .immediate)`
+- 잠금화면 뷰: `🎯 집중` + 남은 시간 + 진행 링
+- Dynamic Island: compact에 남은 분, expanded에 진행 링 + 종료 예정 시각
+- **카운트다운은 `Text(timerInterval:countsDown:)`를 사용**한다. 앱이 push 없이도 시스템이 알아서 감소시켜 주므로 갱신 요청이 필요 없다.
+- `Info.plist`: `NSSupportsLiveActivities = YES`
+
+---
+
+## 8-1. Apple Watch 앱 (watchOS) — **1차 제외 / 선택 확장 참고용**
+
+> ⚠️ **이 섹션은 M1~M5에서 구현하지 않는다.** 나중에 붙일 때를 대비한 설계 메모다.
+> 지금 지켜야 할 것은 §9의 `FocusCore` 패키지 분리뿐이다.
+
+**최소 지원 watchOS 10.0.** iPhone 없이도 단독으로 세션을 시작·완료할 수 있는 독립 실행형 앱.
+
+### 8-1-1. 왜 워치가 중요한가
+
+iPhone 무음 정책의 사각지대를 워치가 메운다. **워치의 로컬 알림은 무음이어도 손목 햅틱(taptic)을 발생시키며, 이는 앱이 백그라운드여도 동작한다.** 따라서 워치를 착용한 상태라면 소리 없이도 세션 종료를 확실히 인지할 수 있다.
+
+### 8-1-2. 화면
+
+단일 화면. 스크롤 없음.
+
+1. 상단: `🎯 집중`
+2. 중앙: 원형 다이얼 (iPhone과 동일한 시각 언어, 눈금 라벨은 0/15/30/45만 표시)
+3. 하단: 남은 시간 숫자
+
+**입력 방식은 iPhone과 다르다.**
+- 시간 설정은 **Digital Crown**으로 한다 (`.digitalCrownRotation`, 1분 단위, 1~60분, `.focusable()` 필수)
+- 화면 드래그는 사용하지 않는다 (작은 화면에서 원형 드래그는 정확도가 나오지 않음)
+- 크라운 회전 후 **1.5초간 입력이 없으면 자동 시작**, 또는 화면 탭으로 즉시 시작
+- 실행 중 탭 = 일시정지, 길게 누르기 = 중지 (iPhone과 동일)
+- 크라운 스냅마다 `WKInterfaceDevice.current().play(.click)`
+
+### 8-1-3. 백그라운드 실행
+
+워치는 앱이 백그라운드로 내려가면 실행이 중단된다. 다음 조합으로 처리한다:
+
+- 세션 시작 시 `WKExtendedRuntimeSession`(`.selfCare` 유형) 시작 — 손목을 내려도 세션 화면과 카운트다운이 유지된다
+- 동시에 로컬 알림도 예약해 이중 안전장치를 둔다 (런타임 세션이 시스템에 의해 종료돼도 알림은 뜬다)
+- 완료 시 `WKInterfaceDevice.current().play(.notification)` 햅틱
+- 남은 시간은 iPhone과 동일하게 **`startAt` 절대시각 기준 재계산** (§6-1 규칙 공유)
+
+### 8-1-4. iPhone ↔ Watch 동기화
+
+**iPhone이 단일 진실 공급자(source of truth)이다.** 캘린더 기록과 통계 집계는 iPhone에서만 수행한다.
+
+| 방향 | 전송 내용 | 방식 |
+|---|---|---|
+| Watch → iPhone | 워치에서 완료된 세션 1건 | `WCSession.transferUserInfo` (큐잉·보장 전송, 오프라인 대응) |
+| iPhone → Watch | 통계 스냅샷(`StatsSnapshot`) | `updateApplicationContext` (최신값만, 덮어쓰기) |
+
+- 워치에서 완료한 세션은 워치 로컬에도 우선 저장하고, iPhone 수신 확인 후 삭제한다 (전송 실패 시 유실 방지)
+- **중복 방지**: 세션 `id`(UUID)를 기준으로 iPhone 측에서 upsert 처리
+- **진행 중 세션은 실시간 미러링을 하지 않는다.** iPhone에서 돌린 세션이 워치 화면에 실시간으로 보이거나 그 반대로 동작하지 않는다. 두 기기의 running 상태를 실시간 동기화하는 것이 이 확장에서 가장 버그가 많이 나는 부분이라, 완료된 세션만 사후에 올려보내는 단방향 구조로 제한한다
+- 워치 단독으로도 동작해야 하므로, iPhone이 꺼져 있어도 세션 시작·완료·로컬 저장이 전부 가능해야 한다
+
+### 8-1-5. 컴플리케이션(워치 페이스)
+
+WidgetKit for watchOS 사용. 3종:
+
+- `accessoryCircular`: 오늘 집중 시간 게이지
+- `accessoryCorner`: 오늘 집중 시간(`HH:mm`)
+- `accessoryInline`: `🎯 오늘 00:35`
+
+탭하면 워치 앱이 실행된다. 갱신은 세션 완료 시 `WidgetCenter.shared.reloadAllTimelines()`.
+
+---
+
+## 9. 기술 스택 / 프로젝트 구조
+
+- Swift 5.9+, SwiftUI, **최소 지원 iOS 17.0** (워치 확장 시 watchOS 10.0)
+- 영속화: SwiftData (App Group 컨테이너)
+- 외부 라이브러리 **없음**
+- 아키텍처: 경량 MVVM. **공유 로직은 로컬 Swift Package `FocusCore`로 분리해 iOS·watchOS·위젯 타깃이 함께 의존한다.**
+
+`FocusCore`에 들어가는 것: 모델, `TimerEngine`, 통계 집계, 디자인 토큰, 스냅샷 포맷.
+플랫폼별 타깃에 남는 것: 화면, 제스처 입력, EventKit, WidgetKit, (향후) WatchConnectivity.
+
+> ⚠️ **워치를 1차에서 빼더라도 이 패키지 분리는 처음부터 한다.** 비용은 하루, 워치를 안 하면 안 되지만, M1에서 `TimerEngine`을 앱 타깃 안에 넣어버리면 나중에 워치를 붙일 때 전부 뜯어내야 한다. 워치를 영영 안 만들더라도 타이머 로직의 순수 테스트가 쉬워지는 이득이 남는다.
+
+```
+Jipjungryeok/
+├── FocusCore/                      // Swift Package (플랫폼 독립)
+│   └── Sources/FocusCore/
+│       ├── Models/FocusSession.swift
+│       ├── Models/RunningState.swift
+│       ├── Models/StatsSnapshot.swift
+│       ├── TimerEngine.swift        // 순수 로직, Date 주입
+│       ├── StatsCalculator.swift    // 월요일 기준 집계
+│       └── DesignSystem/
+│           ├── Palette.swift        // 라이트/다크 대응 정의
+│           └── Typography.swift
+├── Jipjungryeok/                   // iOS 앱 타깃
+│   ├── App/JipjungryeokApp.swift
+│   ├── App/AppGroup.swift           // suite name, container URL 상수
+│   ├── Features/Timer/{TimerView, TimerViewModel, DialView}.swift
+│   ├── Features/Stats/{StatsView, TrendGrid, RetrospectRow, DailyBarChart}.swift
+│   ├── Features/Settings/SettingsView.swift
+│   ├── Store/{SessionStore, SnapshotWriter}.swift
+│   └── Services/{CalendarService, NotificationService,
+│                 LiveActivityService}.swift
+├── FocusWidgets/                   // iOS 위젯 익스텐션
+│   ├── FocusWidgetBundle.swift
+│   ├── TodayWidget.swift
+│   ├── AccessoryWidgets.swift
+│   └── FocusLiveActivity.swift
+└── (향후) FocusWatch/ + FocusWatchComplications/   // M6에서 추가, 지금은 만들지 않음
+```
+
+**M1~M5에서 실제로 만드는 타깃은 3개다:** `FocusCore`(패키지), `Jipjungryeok`(iOS 앱), `FocusWidgets`(위젯 익스텐션).
+
+---
+
+## 10. 디자인 토큰
+
+첨부 이미지(연한 라벤더 배경 + 짙은 슬레이트)을 라이트 팔레트로 삼고, 대응하는 다크 팔레트를 함께 정의한다. **사용자가 고르는 테마 선택 기능은 만들지 않는다 — 시스템 설정을 그대로 따른다.**
+
+| 토큰 | 라이트 | 다크 | 용도 |
+|---|---|---|---|
+| `background` | `#DDE3F2` | `#1A1E29` | 전체 배경 |
+| `ink` | `#4A5468` | `#C9D1E4` | 다이얼 채움, 주요 텍스트, 차트 막대 |
+| `inkSecondary` | `#7A849B` | `#828CA6` | 눈금 라벨, 보조 텍스트 |
+| `stroke` | `#B9C2D8` | `#333B4D` | 카드 테두리, 구분선 |
+| `handle` | `#FFFFFF` | `#E8EDF7` | 다이얼 드래그 핸들 |
+| `accent` | `#8BD344` | `#8BD344` | 상태 점 (초록, 동일) |
+
+**구현 방식**
+- Asset Catalog에 Color Set으로 정의하고 Any/Dark 두 값을 넣는다. 코드에서는 `Color("ink")` 형태로만 참조하고, **하드코딩된 hex나 `.gray` 같은 시스템 색을 쓰지 않는다**
+- `Palette.swift`는 이 Color Set들을 감싼 타입 안전 접근자만 제공한다
+- `.preferredColorScheme`를 지정하지 않는다 (시스템 설정 따름)
+- **위젯과 워치 앱도 동일한 Color Set을 사용한다.** 위젯은 Asset Catalog를 익스텐션 타깃에도 포함시켜야 하며, 다크에서 대비가 깨지지 않는지 별도 확인이 필요하다
+- 워치는 항상 다크 팔레트를 사용한다 (watchOS는 라이트모드가 없다)
+
+- 폰트: SF Pro (시스템). 다이얼 하단 숫자 `.system(size: 64, weight: .bold, design: .rounded)`
+- 카드: `cornerRadius 16`, 1px `stroke` 테두리, 배경은 투명
+
+---
+
+## 11. 구현 순서 (마일스톤)
+
+- **M0 — 프로젝트 골격**
+  Xcode 프로젝트 + `FocusCore` Swift Package + App Group + Asset Catalog(라이트/다크 Color Set) 생성. 빈 앱이 빌드되고 다크모드 전환 시 배경색이 바뀌는 것까지 확인.
+- **M1 — 다이얼 & 타이머 코어**
+  `FocusCore`에 `TimerEngine` 완성(단위 테스트 포함), DialView 드래그/스냅/부채꼴 렌더링, idle→running→완료 흐름, 화면 꺼짐 방지. 저장·알림 없음.
+- **M2 — 영속화 & 통계**
+  SwiftData 모델, SessionStore 집계 쿼리, 통계 화면 3개 섹션 전부.
+- **M3 — 알림 & 상태 복구**
+  로컬 알림 예약/취소, RunningState 복구(앱 강제 종료 후 재실행 시 이어서 표시).
+- **M4 — 캘린더 연동**
+  권한 요청, 전용 캘린더 생성, 이벤트 기록, 실패 재시도 큐, 설정 토글.
+- **M5 — 위젯 & Live Activity**
+  App Group 확정, 스냅샷 라이터, 홈/잠금화면 위젯, Live Activity.
+- **M6 — Apple Watch (선택, 1차 릴리즈 이후)**
+  워치 앱 타깃 추가, Digital Crown 다이얼, `WKExtendedRuntimeSession`, Watch→iPhone 단방향 동기화, 컴플리케이션 3종.
+  **M1~M5를 실제로 며칠 써본 다음 착수 여부를 결정한다.**
+
+각 마일스톤 종료 시 빌드가 통과하고 앱이 실행 가능한 상태여야 한다.
+
+---
+
+## 12. 수용 기준 (완료 판정 체크리스트)
+
+**타이머**
+- [ ] 다이얼을 25분에 놓고 손을 떼면 즉시 카운트다운이 시작된다
+- [ ] 앱을 종료(스와이프 kill)했다가 다시 켜도 남은 시간이 정확하다 (오차 2초 이내)
+- [ ] 비행기모드/시간대 변경 상황에서도 남은 시간이 음수가 되지 않는다
+- [ ] 일시정지 후 재개하면 일시정지한 만큼만 종료 시각이 밀린다
+- [ ] 실행 중 화면이 자동으로 꺼지지 않고, 종료 후에는 다시 꺼진다
+- [ ] 완료 시 소리가 나지 않고 햅틱만 울린다 (무음모드 해제 상태에서도)
+
+**화면 전환**
+- [ ] 다이얼 위에서 좌우로 드래그하면 페이지가 넘어가지 않고 시간이 조정된다
+- [ ] 다이얼 바깥 여백에서 좌우로 스와이프하면 통계/설정으로 넘어간다
+- [ ] 타이머 실행 중 통계로 넘어갔다 돌아와도 세션이 유지된다
+
+**통계**
+- [ ] 35분 세션 1건 완료 후 오늘/이번 주/이번 달/최근 7일/최근 28일이 모두 `00:35`
+- [ ] 23:50에 시작해 00:15에 끝난 세션이 **전날(시작일)** 통계에만 25분으로 잡힌다
+- [ ] 차트가 최신 날짜를 왼쪽에 두고 10일치를 표시한다
+- [ ] 세션 0건일 때 빈 상태가 크래시 없이 그려진다
+
+**캘린더**
+- [ ] 권한 허용 후 세션 완료 시 "집중" 캘린더에 이벤트가 생성된다
+- [ ] 권한 거부 상태에서도 앱이 정상 동작하고 세션은 저장된다
+- [ ] 사용자가 "집중" 캘린더를 삭제해도 다음 세션에서 재생성된다
+
+**위젯**
+- [ ] 세션 완료 후 5초 이내에 홈화면 위젯의 오늘 시간이 갱신된다
+- [ ] 실행 중 잠금화면 Live Activity의 남은 시간이 앱 없이도 감소한다
+- [ ] 세션 종료 시 Live Activity가 사라진다
+
+**다크모드**
+- [ ] 시스템을 다크로 바꾸면 앱·위젯이 모두 다크 팔레트로 전환된다
+- [ ] 다크에서 다이얼 눈금과 배경의 대비가 식별 가능하다
+- [ ] 앱 실행 중 시스템 모드를 바꿔도 재시작 없이 즉시 반영된다
+
+**Apple Watch (M6 착수 시에만 적용)**
+- [ ] iPhone이 꺼져 있어도 워치 단독으로 세션을 시작·완료할 수 있다
+- [ ] 손목을 내려 화면이 꺼져도 카운트다운이 계속되고, 완료 시 손목 햅틱이 울린다
+- [ ] 워치에서 완료한 세션이 iPhone 통계와 캘린더에 반영된다 (비행기모드 해제 후 지연 전송 포함)
+- [ ] 같은 세션이 iPhone에 중복 저장되지 않는다
+- [ ] 컴플리케이션의 오늘 시간이 세션 완료 후 갱신된다
+
+---
+
+## 13. 남은 리스크 / 구현 중 판단 필요
+
+주요 항목은 §1-1에서 모두 확정되었다. 구현 중 마주칠 수 있는 것만 남겨둔다.
+
+1. **번들 ID 확정됨** — `com.janerim.jipjungryeok`. 하위 식별자는 §1-1 표 참조. 유료 멤버십 보유로 App Group 활성화에 문제 없음. Xcode에서 App Group을 만들 때 앱 타깃과 위젯 익스텐션 **양쪽 모두**에 동일 Capability를 추가해야 한다(한쪽만 추가하는 실수가 잦다).
+2. **무음 정책** — 앱을 켜둔 채 사용하는 전제이므로 햅틱만으로 충분하다. 백그라운드에서는 무음 배너만 뜬다는 점을 감수한다.
+3. **워치 미포함의 영향** — 1차에서는 손목 햅틱이 없으므로, 다른 작업에 몰입해 있으면 완료를 놓칠 수 있다. 실사용 후 이 문제가 반복되면 M6 착수를 고려한다.
+4. **다크모드와 위젯** — 위젯 익스텐션이 Asset Catalog를 공유하지 못하면 다크에서 색이 깨진다. M5에서 익스텐션 타깃의 Target Membership 설정을 확인할 것.
