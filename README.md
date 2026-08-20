@@ -11,7 +11,7 @@
 | 마일스톤 | 내용 | 상태 |
 |---|---|---|
 | M0 | 프로젝트 골격 (XcodeGen + FocusCore + App Group + Asset Catalog) | 작성 완료 · **Mac 빌드 검증 대기** |
-| M1 | 다이얼 & 타이머 코어 | — |
+| M1 | 다이얼 & 타이머 코어 | 작성 완료 · **Mac 빌드 검증 대기** |
 | M2 | 영속화 & 통계 | — |
 | M3 | 알림 & 상태 복구 | — |
 | M4 | 캘린더 연동 | — |
@@ -64,14 +64,33 @@ cd FocusCore && swift test
 .
 ├── project.yml            # XcodeGen 프로젝트 정의 (유일한 소스 오브 트루스)
 ├── FocusCore/             # 로컬 Swift Package — 플랫폼 독립 로직 (§9)
-│   └── Sources/FocusCore/
-│       └── DesignSystem/  # Palette, Typography, Metrics
+│   ├── Sources/FocusCore/
+│   │   ├── TimerEngine.swift   # 상태 전이 + 절대시각 계산 (§6)
+│   │   ├── DialGeometry.swift  # 다이얼 각도 ↔ 분 변환 (§4.1)
+│   │   ├── TimeDisplay.swift   # 시간 표기 규칙 (§4.1, §4.2)
+│   │   ├── Models/             # RunningState, SessionRecord
+│   │   └── DesignSystem/       # Palette, Typography, Metrics
+│   └── Tests/FocusCoreTests/
 ├── Shared/                # 앱·위젯 두 타겟에 함께 컴파일되는 것
 │   ├── Colors.xcassets/   # 디자인 토큰 6종 (라이트/다크)
 │   └── AppGroup.swift     # App Group 식별자와 공유 저장소
 ├── Jipjungryeok/          # iOS 앱 타겟
+│   ├── App/               # 진입점, RootView(3페이지), 햅틱, 페이지 인디케이터
+│   └── Features/          # Timer(구현) / Stats·Settings(자리만)
 └── FocusWidgets/          # 위젯 익스텐션 타겟
 ```
+
+`project.yml` 의 소스는 경로 단위로 잡혀 있어서, 파일을 추가할 때 프로젝트 정의를
+고칠 필요가 없다. Mac 에서 `xcodegen generate` 만 다시 돌리면 된다.
+
+## 타이머 로직
+
+시간 계산은 전부 [FocusCore/Sources/FocusCore/TimerEngine.swift](FocusCore/Sources/FocusCore/TimerEngine.swift)
+에 있고, **현재 시각을 인자로 주입받는 순수 값 타입**이다. `Timer` 도 `Date()` 직접 호출도 없다.
+
+덕분에 실제로 25분을 기다리거나 기기 시간대를 바꿔 보지 않고도 일시정지 누적,
+앱 강제 종료 후 복귀, 시계 역행 같은 §12 수용 기준을 단위 테스트로 검증할 수 있다.
+1초 `Timer` 는 앱 타깃의 `TimerViewModel` 에만 있고, 화면을 다시 그리라는 신호일 뿐이다.
 
 **`FocusCore` 분리는 워치를 안 만들더라도 유지한다.** 타이머 로직을 앱 타겟 안에
 넣어버리면 나중에 워치를 붙일 때 전부 뜯어내야 하고, 순수 로직 단위 테스트도 어려워진다.

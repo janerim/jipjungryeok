@@ -1,74 +1,48 @@
 import SwiftUI
 import FocusCore
 
-/// M0 확인용 임시 루트 화면.
+/// §4.0 화면 전환 구조.
 ///
-/// M1 에서 §4.0 의 `TabView(selection:) + .tabViewStyle(.page)` 구조
-/// (통계 ↔ 타이머 ↔ 설정)로 교체된다.
+/// ```
+/// [ 통계 ] ←스와이프→ [ 타이머 ] ←스와이프→ [ 설정 ]
+///                     (초기 화면)
+/// ```
 ///
-/// 지금 이 화면의 목적은 하나다: 6개 디자인 토큰이 라이트/다크에서 각각
-/// 제대로 해석되는지 눈으로 확인하는 것 (M0 완료 조건).
+/// 타이머 모델을 여기서 들고 있는 이유: 페이지를 넘겨도 세션이 끊기지 않아야 한다
+/// (§12 "타이머 실행 중 통계로 넘어갔다 돌아와도 세션이 유지된다").
 struct RootView: View {
 
-    private let tokens: [(name: String, color: Color)] = [
-        ("background", Palette.background),
-        ("ink", Palette.ink),
-        ("inkSecondary", Palette.inkSecondary),
-        ("stroke", Palette.stroke),
-        ("handle", Palette.handle),
-        ("accent", Palette.accent)
-    ]
+    private enum Page: Int, CaseIterable, Hashable {
+        case stats, timer, settings
+    }
+
+    @State private var page: Page = .timer
+    @State private var timerModel = TimerViewModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Palette.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Palette.accent)
-                        .frame(width: 8, height: 8)
-                    Text("🎯 집중")
-                        .font(Typography.statusLabel)
-                        .foregroundStyle(Palette.ink)
-                }
+            TabView(selection: $page) {
+                StatsView()
+                    .tag(Page.stats)
+                TimerView(model: timerModel)
+                    .tag(Page.timer)
+                SettingsView()
+                    .tag(Page.settings)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
 
-                Text("M0 · 프로젝트 골격")
-                    .font(Typography.statCaption)
-                    .foregroundStyle(Palette.inkSecondary)
-
-                VStack(spacing: 0) {
-                    ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
-                        if index > 0 {
-                            Divider().overlay(Palette.stroke)
-                        }
-                        HStack {
-                            Text(token.name)
-                                .font(Typography.statCaption)
-                                .foregroundStyle(Palette.inkSecondary)
-                            Spacer()
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(token.color)
-                                .frame(width: 44, height: 22)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
-                                )
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                    }
-                }
-                .overlay(
-                    RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
-                        .stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
-                )
-                .padding(.horizontal, 32)
-
-                Text("00:00")
-                    .font(Typography.countdown)
-                    .foregroundStyle(Palette.ink)
+            PageIndicator(pageCount: Page.allCases.count, currentIndex: page.rawValue)
+                .padding(.bottom, 10)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // §6-2 — 포그라운드로 돌아오면 절대시각으로 다시 계산하고,
+            // 종료 시각이 이미 지났으면 그 시점으로 완료 처리한다.
+            if newPhase == .active {
+                timerModel.refresh()
             }
         }
     }

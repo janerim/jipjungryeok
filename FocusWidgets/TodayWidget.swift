@@ -57,17 +57,11 @@ struct TodayWidgetView: View {
                 .font(Typography.statCaption)
                 .foregroundStyle(Palette.inkSecondary)
 
-            Text(hhmm(entry.todaySeconds))
+            Text(TimeDisplay.hhmm(entry.todaySeconds))
                 .font(Typography.statValue)
                 .foregroundStyle(Palette.ink)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .containerBackground(Palette.background, for: .widget)
-    }
-
-    /// §4.2 표기 규칙: 35분 → `00:35`, 3시간 5분 → `03:05`
-    /// M2 에서 FocusCore 의 공용 포매터로 옮긴다.
-    private func hhmm(_ seconds: Int) -> String {
-        String(format: "%02d:%02d", seconds / 3600, (seconds % 3600) / 60)
     }
 }
