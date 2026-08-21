@@ -3,7 +3,7 @@ import FocusCore
 
 /// §4.1 원형 다이얼.
 ///
-/// 12시 방향이 0, 시계방향으로 60분 한 바퀴.
+/// 12시 방향이 0, 시계방향으로 한 바퀴가 `TimerEngine.maximumMinutes`(90분).
 /// 그려지는 지름은 `diameter` 이지만 뷰의 실제 크기는 사방으로 `Metrics.dialHitSlop`
 /// 만큼 넓다. §4.0 의 "다이얼 영역 = 반지름 + 40pt" 가 이 여백이며, 그 안에서
 /// 시작한 드래그는 `highPriorityGesture` 로 페이지 스와이프를 이긴다.
@@ -26,6 +26,17 @@ struct DialView: View {
 
     @State private var isDragging = false
     @State private var lastMinutes = TimerEngine.maximumMinutes
+
+    // MARK: - 눈금 간격
+
+    /// 짧은 틱 간격(분). 스냅 단위(1분)와는 무관하다.
+    private static let tickInterval = 5
+
+    /// 굵은 틱과 숫자 라벨 간격(분).
+    private static let labelInterval = 15
+
+    /// 다이얼 한 바퀴에 해당하는 분
+    private var fullTurnMinutes: Double { Double(TimerEngine.maximumMinutes) }
 
     // MARK: - 치수
 
@@ -84,10 +95,14 @@ struct DialView: View {
         .animation(.easeInOut(duration: 0.2), value: phase)
     }
 
-    /// 1분마다 짧은 틱, 5분마다 굵은 틱
+    /// 5분마다 짧은 틱, 15분마다 굵은 틱.
+    ///
+    /// 한 바퀴가 90분이 되면서 1분 틱은 90개가 되어 260pt 다이얼에서 9pt 간격까지
+    /// 좁아진다. 회색 띠처럼 뭉개지므로 5분으로 묶는다. **스냅은 그대로 1분 단위다**
+    /// — 눈금 간격과 스냅 단위는 별개다.
     private var ticks: some View {
-        ForEach(0..<60, id: \.self) { minute in
-            let isMajor = minute % 5 == 0
+        ForEach(Array(stride(from: 0, to: TimerEngine.maximumMinutes, by: Self.tickInterval)), id: \.self) { minute in
+            let isMajor = minute % Self.labelInterval == 0
             Path { path in
                 path.move(to: point(atMinute: Double(minute), radius: radius))
                 path.addLine(
@@ -101,9 +116,9 @@ struct DialView: View {
         }
     }
 
-    /// 0, 5, 10 … 55
+    /// 0, 15, 30, 45, 60, 75
     private var tickLabels: some View {
-        ForEach(Array(stride(from: 0, to: 60, by: 5)), id: \.self) { minute in
+        ForEach(Array(stride(from: 0, to: TimerEngine.maximumMinutes, by: Self.labelInterval)), id: \.self) { minute in
             Text("\(minute)")
                 .font(Typography.dialTick)
                 .foregroundStyle(Palette.inkSecondary)
@@ -118,7 +133,7 @@ struct DialView: View {
                 Circle().stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
             )
             .frame(width: 22, height: 22)
-            .position(point(atMinute: fraction * 60, radius: sectorRadius))
+            .position(point(atMinute: fraction * fullTurnMinutes, radius: sectorRadius))
     }
 
     // MARK: - 제스처
@@ -136,7 +151,7 @@ struct DialView: View {
                     // 경계 판정의 기준점을 현재 다이얼 값으로 맞춰 둔다.
                     lastMinutes = max(
                         TimerEngine.minimumMinutes,
-                        Int((fraction * 60).rounded())
+                        Int((fraction * fullTurnMinutes).rounded())
                     )
                     onDragBegan()
                 }
@@ -169,7 +184,7 @@ struct DialView: View {
         DialView(
             diameter: 260,
             phase: .idle,
-            fraction: 25.0 / 60.0,
+            fraction: 25.0 / 90.0,
             onDragBegan: {},
             onMinutesChanged: { _ in },
             onDragEnded: {},
@@ -185,7 +200,7 @@ struct DialView: View {
         DialView(
             diameter: 260,
             phase: .paused,
-            fraction: 12.0 / 60.0,
+            fraction: 12.0 / 90.0,
             onDragBegan: {},
             onMinutesChanged: { _ in },
             onDragEnded: {},

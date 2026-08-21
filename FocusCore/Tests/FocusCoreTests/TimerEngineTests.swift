@@ -253,7 +253,7 @@ final class TimerEngineTests: XCTestCase {
 
     // MARK: - 다이얼 설정 (§4.1)
 
-    /// 설정 시간은 1분에서 60분 사이로 잘린다.
+    /// 설정 시간은 1분에서 90분 사이로 잘린다 (§4.1).
     func testPlannedMinutesAreClamped() {
         var engine = TimerEngine(plannedMinutes: 25)
 
@@ -263,8 +263,11 @@ final class TimerEngineTests: XCTestCase {
         engine.setPlannedMinutes(-5, at: t0)
         XCTAssertEqual(engine.plannedMinutes, 1)
 
-        engine.setPlannedMinutes(61, at: t0)
-        XCTAssertEqual(engine.plannedMinutes, 60)
+        engine.setPlannedMinutes(91, at: t0)
+        XCTAssertEqual(engine.plannedMinutes, 90)
+
+        engine.setPlannedMinutes(75, at: t0)
+        XCTAssertEqual(engine.plannedMinutes, 75, "60분을 넘어도 잘리지 않아야 한다")
 
         engine.setPlannedMinutes(37, at: t0)
         XCTAssertEqual(engine.plannedMinutes, 37)
@@ -273,7 +276,8 @@ final class TimerEngineTests: XCTestCase {
     /// 생성자도 같은 범위로 잘린다.
     func testInitializerClampsMinutes() {
         XCTAssertEqual(TimerEngine(plannedMinutes: 0).plannedMinutes, 1)
-        XCTAssertEqual(TimerEngine(plannedMinutes: 900).plannedMinutes, 60)
+        XCTAssertEqual(TimerEngine(plannedMinutes: 900).plannedMinutes, 90)
+        XCTAssertEqual(TimerEngine(plannedMinutes: 90).plannedMinutes, 90)
     }
 
     /// §4.1 — 일시정지 중 다이얼을 돌리면 기존 세션이 §6-4 규칙대로 정리되고
@@ -304,19 +308,22 @@ final class TimerEngineTests: XCTestCase {
 
     // MARK: - 다이얼 렌더링 값
 
-    /// 부채꼴 비율은 언제나 60분 한 바퀴 기준이다.
-    func testDialFractionIsRelativeToFullHour() {
-        var engine = TimerEngine(plannedMinutes: 60)
-        XCTAssertEqual(engine.dialFraction(at: t0), 1.0, accuracy: 0.0001)
+    /// 부채꼴 비율은 언제나 한 바퀴(= `maximumMinutes`) 기준이다.
+    func testDialFractionIsRelativeToOneFullTurn() {
+        var engine = TimerEngine(plannedMinutes: 90)
+        XCTAssertEqual(engine.dialFraction(at: t0), 1.0, accuracy: 0.0001, "최대값은 한 바퀴 전체")
+
+        engine = TimerEngine(plannedMinutes: 45)
+        XCTAssertEqual(engine.dialFraction(at: t0), 0.5, accuracy: 0.0001, "45분은 반 바퀴")
+
+        engine = TimerEngine(plannedMinutes: 60)
+        XCTAssertEqual(engine.dialFraction(at: t0), 2.0 / 3.0, accuracy: 0.0001, "60분은 2/3 바퀴")
 
         engine = TimerEngine(plannedMinutes: 30)
-        XCTAssertEqual(engine.dialFraction(at: t0), 0.5, accuracy: 0.0001)
-
-        engine = TimerEngine(plannedMinutes: 15)
         engine.start(at: t0)
-        // 900초 중 450초 지남 → 남은 450초 = 60분의 1/8
-        XCTAssertEqual(engine.dialFraction(at: at(450)), 0.125, accuracy: 0.0001)
-        XCTAssertEqual(engine.dialFraction(at: at(900)), 0.0, accuracy: 0.0001)
+        // 1800초 중 900초 지남 → 남은 900초 = 90분의 1/6
+        XCTAssertEqual(engine.dialFraction(at: at(900)), 1.0 / 6.0, accuracy: 0.0001)
+        XCTAssertEqual(engine.dialFraction(at: at(1800)), 0.0, accuracy: 0.0001)
     }
 
     // MARK: - 복구 (M3 준비)

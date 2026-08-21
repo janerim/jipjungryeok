@@ -21,8 +21,12 @@ public struct TimerEngine: Equatable, Sendable {
     /// §4.1 다이얼 최소값
     public static let minimumMinutes = 1
 
-    /// §4.1 다이얼 최대값. 다이얼 한 바퀴가 곧 이 값이다.
-    public static let maximumMinutes = 60
+    /// §4.1 다이얼 최대값. **다이얼 한 바퀴가 곧 이 값이다.**
+    ///
+    /// 이 상수를 바꾸면 다이얼 전체가 재조정된다. 각도 계산(`DialGeometry`)과
+    /// 부채꼴 비율(`dialFraction`)이 전부 여기서 나오므로, 다른 곳에 숫자를
+    /// 직접 적지 말 것. 눈금·라벨 간격만 `DialView` 가 따로 정한다.
+    public static let maximumMinutes = 90
 
     /// §6-4 중도 중지 시, 이 시간 미만이면 기록하지 않고 버린다.
     public static let minimumRecordedSeconds = 60
@@ -80,7 +84,7 @@ public struct TimerEngine: Equatable, Sendable {
         return max(0, running.plannedSeconds - actualSeconds(at: now))
     }
 
-    /// 다이얼 부채꼴 채움 비율 (0...1). 한 바퀴가 60분이므로 남은 시간을 60분으로 나눈다.
+    /// 다이얼 부채꼴 채움 비율 (0...1). 한 바퀴가 `maximumMinutes` 이므로 그것으로 나눈다.
     public func dialFraction(at now: Date) -> Double {
         let seconds = Double(remainingSeconds(at: now))
         let full = Double(Self.maximumMinutes * 60)
