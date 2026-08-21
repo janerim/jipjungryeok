@@ -19,4 +19,20 @@ public enum CalendarEventFormat {
         let base = "🎯 \(calendarName) \(minutes)분"
         return record.isCompleted ? base : "\(base) (중단)"
     }
+
+    /// 이벤트 notes. 메모가 없거나 공백뿐이면 `nil`.
+    public static func eventNotes(for record: SessionRecord) -> String? {
+        normalizedMemo(record.memo)
+    }
+
+    /// 저장할 가치가 있는 메모만 남긴다.
+    ///
+    /// 앞뒤 공백을 털고, 털고 나서 빈 문자열이면 `nil` 이다.
+    /// 빈 문자열을 그대로 저장하면 "메모 있음" 과 "없음" 이 구분되지 않아
+    /// 회고 카드에 빈 줄이 남는다.
+    public static func normalizedMemo(_ memo: String?) -> String? {
+        guard let trimmed = memo?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
 }

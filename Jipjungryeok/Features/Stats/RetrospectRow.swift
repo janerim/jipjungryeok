@@ -42,6 +42,16 @@ private struct RetrospectCell: View {
                 .font(Typography.statCaption)
                 .foregroundStyle(Palette.inkSecondary)
                 .monospacedDigit()
+
+            // 메모가 있으면 무엇을 했는지 보여준다. 이게 있어야 "회고" 가 된다.
+            // 메모가 없어도 자리는 남긴다 — HStack 안에서 카드 높이가 들쭉날쭉하면
+            // 세 칸이 어긋나 보인다.
+            Text(session?.memo ?? " ")
+                .font(Typography.statCaption)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)

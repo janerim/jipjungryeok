@@ -66,9 +66,10 @@ final class CalendarService {
         event.startDate = record.startAt
         event.endDate = record.endAt
         event.calendar = calendar
-        // §7 — 알람도 메모도 붙이지 않는다. 이미 끝난 일에 알람이 울리면 안 된다.
+        // §7 — 알람은 붙이지 않는다. 이미 끝난 일에 알람이 울리면 안 된다.
         event.alarms = nil
-        event.notes = nil
+        // 세션 직후 받은 한 줄 메모. 없으면 nil 이다.
+        event.notes = CalendarEventFormat.eventNotes(for: record)
 
         do {
             try eventStore.save(event, span: .thisEvent, commit: true)

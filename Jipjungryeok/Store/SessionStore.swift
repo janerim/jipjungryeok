@@ -60,7 +60,17 @@ final class SessionStore {
         persist()
     }
 
-    /// 재시도 큐가 id 로 세션을 되찾을 때 쓴다 (§7).
+    /// 세션이 끝난 뒤 받은 메모를 붙인다.
+    ///
+    /// 회고 카드가 바로 바뀌어야 하므로 `reload()` 까지 한다.
+    func attachMemo(_ memo: String, to sessionID: UUID) {
+        guard let session = fetchSession(id: sessionID) else { return }
+        session.memo = memo
+        persist()
+        reload()
+    }
+
+    /// 재시도 큐와 메모 대기가 id 로 세션을 되찾을 때 쓴다 (§7).
     func record(with id: UUID) -> SessionRecord? {
         fetchSession(id: id)?.record
     }

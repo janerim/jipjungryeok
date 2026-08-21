@@ -27,13 +27,20 @@ public struct SessionRecord: Equatable, Identifiable, Sendable {
     /// 끝까지 갔으면 `true`, 중도 중지면 `false`
     public let isCompleted: Bool
 
+    /// 세션이 끝난 직후 사용자가 남긴 한 줄 메모. 건너뛰면 `nil`.
+    ///
+    /// 회고 카드(§4.2)와 캘린더 이벤트의 notes(§7)에 함께 쓰인다.
+    /// 엔진은 이 값을 만들지 않는다 — 세션이 끝난 뒤 화면에서 붙는다.
+    public let memo: String?
+
     public init(
         id: UUID,
         startAt: Date,
         endAt: Date,
         plannedSeconds: Int,
         actualSeconds: Int,
-        isCompleted: Bool
+        isCompleted: Bool,
+        memo: String? = nil
     ) {
         self.id = id
         self.startAt = startAt
@@ -41,5 +48,6 @@ public struct SessionRecord: Equatable, Identifiable, Sendable {
         self.plannedSeconds = plannedSeconds
         self.actualSeconds = actualSeconds
         self.isCompleted = isCompleted
+        self.memo = memo
     }
 }

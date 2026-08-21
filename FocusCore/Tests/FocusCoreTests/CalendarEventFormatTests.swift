@@ -9,7 +9,8 @@ final class CalendarEventFormatTests: XCTestCase {
     private func record(
         planned: Int,
         actual: Int,
-        completed: Bool
+        completed: Bool,
+        memo: String? = nil
     ) -> SessionRecord {
         SessionRecord(
             id: UUID(),
@@ -17,7 +18,8 @@ final class CalendarEventFormatTests: XCTestCase {
             endAt: t0.addingTimeInterval(Double(actual)),
             plannedSeconds: planned,
             actualSeconds: actual,
-            isCompleted: completed
+            isCompleted: completed,
+            memo: memo
         )
     }
 
@@ -53,5 +55,43 @@ final class CalendarEventFormatTests: XCTestCase {
 
     func testCalendarNameIsStable() {
         XCTAssertEqual(CalendarEventFormat.calendarName, "집중")
+    }
+
+    // MARK: - 메모 → 이벤트 notes
+
+    func testMemoBecomesEventNotes() {
+        let notes = CalendarEventFormat.eventNotes(
+            for: record(planned: 1500, actual: 1500, completed: true, memo: "기획서 정리")
+        )
+        XCTAssertEqual(notes, "기획서 정리")
+    }
+
+    func testNoMemoMeansNoNotes() {
+        XCTAssertNil(
+            CalendarEventFormat.eventNotes(
+                for: record(planned: 1500, actual: 1500, completed: true, memo: nil)
+            )
+        )
+    }
+
+    /// 공백만 남은 메모는 "없음" 과 같게 취급한다.
+    /// 빈 문자열을 저장하면 회고 카드에 빈 줄만 남는다.
+    func testBlankMemoIsTreatedAsAbsent() {
+        XCTAssertNil(CalendarEventFormat.normalizedMemo(""))
+        XCTAssertNil(CalendarEventFormat.normalizedMemo("   "))
+        XCTAssertNil(CalendarEventFormat.normalizedMemo("\n \t "))
+        XCTAssertNil(CalendarEventFormat.normalizedMemo(nil))
+    }
+
+    func testMemoIsTrimmed() {
+        XCTAssertEqual(CalendarEventFormat.normalizedMemo("  기획서 정리 \n"), "기획서 정리")
+    }
+
+    /// 메모는 제목에 끼어들지 않는다. 제목은 §7 스펙 그대로여야 한다.
+    func testMemoDoesNotLeakIntoTitle() {
+        let title = CalendarEventFormat.eventTitle(
+            for: record(planned: 1500, actual: 1500, completed: true, memo: "기획서 정리")
+        )
+        XCTAssertEqual(title, "🎯 집중 25분")
     }
 }

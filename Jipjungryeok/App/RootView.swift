@@ -49,6 +49,11 @@ struct RootView: View {
             PageIndicator(pageCount: Page.allCases.count, currentIndex: page.rawValue)
                 .padding(.bottom, 10)
         }
+        .sheet(item: memoBinding) { session in
+            MemoSheet(session: session) { memo in
+                recorder.finalizeMemoPrompt(memo: memo)
+            }
+        }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
             // §6-2 — 포그라운드로 돌아오면 절대시각으로 다시 계산하고,
@@ -58,7 +63,21 @@ struct RootView: View {
             store.reload()
             // 시스템 설정에서 권한을 바꾸고 돌아왔을 수 있다 (§4.3).
             calendar.refreshAuthorization()
+            // 백그라운드에서 끝난 세션이 있으면 지금 메모를 묻는다.
+            recorder.refreshMemoPrompt()
         }
+    }
+
+    /// 시트를 스와이프로 내리는 것도 "건너뛰기" 로 친다.
+    /// 그래야 캘린더 기록이 대기 상태로 남지 않는다.
+    private var memoBinding: Binding<SessionRecord?> {
+        Binding(
+            get: { recorder.memoPrompt },
+            set: { newValue in
+                guard newValue == nil else { return }
+                recorder.finalizeMemoPrompt(memo: nil)
+            }
+        )
     }
 }
 

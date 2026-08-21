@@ -28,6 +28,10 @@ final class FocusSession {
     /// EventKit 이벤트 식별자. 캘린더 기록(§7, M4)이 성공해야 채워진다.
     var calendarEventID: String?
 
+    /// 세션 직후 남긴 한 줄 메모. 건너뛰면 nil.
+    /// 옵셔널이라 기존 스토어는 SwiftData 경량 마이그레이션으로 그대로 열린다.
+    var memo: String?
+
     init(record: SessionRecord, calendarEventID: String? = nil) {
         self.id = record.id
         self.startAt = record.startAt
@@ -36,6 +40,7 @@ final class FocusSession {
         self.actualSeconds = record.actualSeconds
         self.isCompleted = record.isCompleted
         self.calendarEventID = calendarEventID
+        self.memo = record.memo
     }
 
     var record: SessionRecord {
@@ -45,7 +50,8 @@ final class FocusSession {
             endAt: endAt,
             plannedSeconds: plannedSeconds,
             actualSeconds: actualSeconds,
-            isCompleted: isCompleted
+            isCompleted: isCompleted,
+            memo: memo
         )
     }
 
@@ -57,5 +63,7 @@ final class FocusSession {
         plannedSeconds = record.plannedSeconds
         actualSeconds = record.actualSeconds
         isCompleted = record.isCompleted
+        // 메모는 덮어쓰지 않는다. 세션이 끝난 뒤에 따로 붙는 값이라,
+        // 엔진이 만든 record 에는 언제나 nil 이다.
     }
 }

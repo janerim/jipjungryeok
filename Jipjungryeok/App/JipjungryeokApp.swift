@@ -45,6 +45,8 @@ struct JipjungryeokApp: App {
             .task {
                 // §7 — 지난 실행에서 캘린더 기록에 실패한 세션을 다시 시도한다.
                 recorder.retryPendingCalendarWrites()
+                // 앱이 꺼져 있는 동안 끝난 세션이 있으면 메모를 묻는다.
+                recorder.refreshMemoPrompt()
             }
         }
         // §10 — `.preferredColorScheme` 을 지정하지 않는다. 시스템 설정을 그대로 따른다.
