@@ -41,13 +41,7 @@ final class SessionStore {
     /// 1초 타이머가 겹치는 경우), 나중에 워치에서 같은 세션이 다시 올라와도(§8-1-4)
     /// 중복 행이 생기지 않는다.
     func save(_ record: SessionRecord) {
-        let targetID = record.id
-        var descriptor = FetchDescriptor<FocusSession>(
-            predicate: #Predicate<FocusSession> { $0.id == targetID }
-        )
-        descriptor.fetchLimit = 1
-
-        if let existing = try? context.fetch(descriptor).first {
+        if let existing = fetchSession(id: record.id) {
             existing.apply(record)
         } else {
             context.insert(FocusSession(record: record))
@@ -57,7 +51,29 @@ final class SessionStore {
         reload()
     }
 
-    /// §4.3 데이터 초기화. 실제 호출은 M4 설정 화면에서 연결한다.
+    /// §7 캘린더 기록에 성공하면 이벤트 식별자를 세션에 붙인다.
+    ///
+    /// 통계는 달라지지 않으므로 `reload()` 를 하지 않는다.
+    func attachCalendarEvent(_ eventID: String, to sessionID: UUID) {
+        guard let session = fetchSession(id: sessionID) else { return }
+        session.calendarEventID = eventID
+        persist()
+    }
+
+    /// 재시도 큐가 id 로 세션을 되찾을 때 쓴다 (§7).
+    func record(with id: UUID) -> SessionRecord? {
+        fetchSession(id: id)?.record
+    }
+
+    private func fetchSession(id: UUID) -> FocusSession? {
+        var descriptor = FetchDescriptor<FocusSession>(
+            predicate: #Predicate<FocusSession> { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return try? context.fetch(descriptor).first
+    }
+
+    /// §4.3 데이터 초기화.
     func deleteAll() {
         do {
             try context.delete(model: FocusSession.self)

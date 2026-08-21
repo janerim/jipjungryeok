@@ -17,6 +17,10 @@ struct RootView: View {
     }
 
     let store: SessionStore
+    let recorder: SessionRecorder
+    let settings: AppSettings
+    let calendar: CalendarService
+    let notifications: NotificationService
     let timerModel: TimerViewModel
 
     @State private var page: Page = .timer
@@ -32,8 +36,13 @@ struct RootView: View {
                     .tag(Page.stats)
                 TimerView(model: timerModel)
                     .tag(Page.timer)
-                SettingsView()
-                    .tag(Page.settings)
+                SettingsView(
+                    recorder: recorder,
+                    settings: settings,
+                    calendar: calendar,
+                    notifications: notifications
+                )
+                .tag(Page.settings)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
@@ -47,18 +56,35 @@ struct RootView: View {
             timerModel.refresh()
             // 자정을 넘겨 돌아왔다면 "오늘" 이 달라져 있다.
             store.reload()
+            // 시스템 설정에서 권한을 바꾸고 돌아왔을 수 있다 (§4.3).
+            calendar.refreshAuthorization()
         }
     }
 }
 
 #Preview("라이트") {
-    let store = SessionStore(inMemory: true)
-    return RootView(store: store, timerModel: TimerViewModel(store: store, notifications: NotificationService()))
-        .preferredColorScheme(.light)
+    RootView.preview.preferredColorScheme(.light)
 }
 
 #Preview("다크") {
-    let store = SessionStore(inMemory: true)
-    return RootView(store: store, timerModel: TimerViewModel(store: store, notifications: NotificationService()))
-        .preferredColorScheme(.dark)
+    RootView.preview.preferredColorScheme(.dark)
+}
+
+extension RootView {
+    /// 프리뷰용 조립. 디스크에 아무것도 남기지 않는다.
+    static var preview: RootView {
+        let store = SessionStore(inMemory: true)
+        let settings = AppSettings()
+        let calendar = CalendarService()
+        let notifications = NotificationService()
+        let recorder = SessionRecorder(store: store, calendar: calendar, settings: settings)
+        return RootView(
+            store: store,
+            recorder: recorder,
+            settings: settings,
+            calendar: calendar,
+            notifications: notifications,
+            timerModel: TimerViewModel(recorder: recorder, notifications: notifications)
+        )
+    }
 }

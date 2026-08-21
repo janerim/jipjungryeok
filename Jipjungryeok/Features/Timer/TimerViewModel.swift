@@ -18,11 +18,11 @@ final class TimerViewModel {
     private(set) var now: Date = .now
 
     @ObservationIgnored private var ticker: Timer?
-    @ObservationIgnored private let store: SessionStore
+    @ObservationIgnored private let recorder: SessionRecorder
     @ObservationIgnored private let notifications: NotificationService
 
-    init(store: SessionStore, notifications: NotificationService) {
-        self.store = store
+    init(recorder: SessionRecorder, notifications: NotificationService) {
+        self.recorder = recorder
         self.notifications = notifications
         restoreRunningSession()
     }
@@ -79,7 +79,7 @@ final class TimerViewModel {
 
         // 진행 중/일시정지 상태였다면 여기서 기존 세션이 정리된다 (§4.1, §6-4)
         if let finished = engine.setPlannedMinutes(minutes, at: .now) {
-            store.save(finished)
+            recorder.finish(finished)
         }
 
         if !wasIdle {
@@ -118,7 +118,7 @@ final class TimerViewModel {
         guard engine.phase != .idle else { return }
 
         if let finished = engine.stop(at: .now) {
-            store.save(finished)
+            recorder.finish(finished)
         }
         Haptics.warning()
         stopTicking()
@@ -187,14 +187,14 @@ final class TimerViewModel {
         RunningStateStore.clear()
 
         // 저장이 곧 통계 갱신이다. SessionStore 가 save 안에서 reload 까지 한다.
-        store.save(record)
+        // 설정이 켜져 있으면 여기서 캘린더 기록(§7)까지 이어진다.
+        recorder.finish(record)
 
         // §6-3 — 알림음 없이 햅틱만
         if playHaptic {
             Haptics.success()
         }
 
-        // M4: 캘린더 이벤트 생성
         // M5: 통계 스냅샷 갱신 + 위젯 리로드 + Live Activity 종료
     }
 

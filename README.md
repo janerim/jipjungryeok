@@ -15,7 +15,7 @@
 | M1 | 다이얼 & 타이머 코어 | 완료 · 빌드 검증됨 |
 | M2 | 영속화 & 통계 | 완료 · 빌드 검증됨 |
 | M3 | 알림 & 상태 복구 | 작성 완료 · **Mac 빌드 검증 대기** |
-| M4 | 캘린더 연동 | — |
+| M4 | 캘린더 연동 | 작성 완료 · **Mac 빌드 검증 대기** |
 | M5 | 위젯 & Live Activity | — |
 | M6 | Apple Watch (선택, 1차 릴리즈 이후) | — |
 
@@ -87,9 +87,9 @@ ad-hoc 서명이 필요하다. 빠지면 App Group entitlement 가 안 붙어
 │   └── AppGroup.swift     # App Group 식별자와 공유 저장소
 ├── Jipjungryeok/          # iOS 앱 타겟
 │   ├── App/               # 진입점, RootView(3페이지), 햅틱, 페이지 인디케이터
-│   ├── Store/             # FocusSession(@Model), SessionStore, RunningStateStore
-│   ├── Services/          # NotificationService (M4 에 CalendarService 추가)
-│   └── Features/          # Timer·Stats(구현) / Settings(자리만)
+│   ├── Store/             # FocusSession(@Model), SessionStore, SessionRecorder, 설정·큐
+│   ├── Services/          # NotificationService, CalendarService
+│   └── Features/          # Timer, Stats, Settings
 └── FocusWidgets/          # 위젯 익스텐션 타겟
 ```
 

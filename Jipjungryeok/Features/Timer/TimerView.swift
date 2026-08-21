@@ -65,8 +65,17 @@ struct TimerView: View {
 }
 
 #Preview {
-    ZStack {
+    let store = SessionStore(inMemory: true)
+    let settings = AppSettings()
+    let recorder = SessionRecorder(
+        store: store,
+        calendar: CalendarService(),
+        settings: settings
+    )
+    return ZStack {
         Palette.background.ignoresSafeArea()
-        TimerView(model: TimerViewModel(store: SessionStore(inMemory: true), notifications: NotificationService()))
+        TimerView(
+            model: TimerViewModel(recorder: recorder, notifications: NotificationService())
+        )
     }
 }
