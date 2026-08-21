@@ -6,7 +6,8 @@ import FocusCore
 /// 타이머 화면의 상태 보유자.
 ///
 /// 시간 계산은 전부 `FocusCore.TimerEngine` 이 한다. 여기가 맡는 것은 순수 로직이
-/// 건드릴 수 없는 것들뿐이다 — 1초 화면 갱신, 햅틱, 화면 자동 잠금.
+/// 건드릴 수 없는 것들뿐이다 — 1초 화면 갱신, 햅틱, 화면 자동 잠금,
+/// 그리고 진행 상태 보존과 알림 예약(M3).
 @MainActor
 @Observable
 final class TimerViewModel {
@@ -18,9 +19,12 @@ final class TimerViewModel {
 
     @ObservationIgnored private var ticker: Timer?
     @ObservationIgnored private let store: SessionStore
+    @ObservationIgnored private let notifications: NotificationService
 
-    init(store: SessionStore) {
+    init(store: SessionStore, notifications: NotificationService) {
         self.store = store
+        self.notifications = notifications
+        restoreRunningSession()
     }
 
     // MARK: - 화면이 읽는 값
@@ -32,6 +36,39 @@ final class TimerViewModel {
     var countdownText: String { TimeDisplay.countdown(remainingSeconds) }
 
     var dialFraction: Double { engine.dialFraction(at: now) }
+
+    // MARK: - 앱 강제 종료 복구 (§12)
+
+    /// 저장해 둔 진행 상태가 있으면 되살린다.
+    ///
+    /// 남은 시간은 저장돼 있지 않고 `startAt` 에서 다시 계산되므로(§6-1), 앱이 죽어
+    /// 있던 시간도 정확히 반영된다. 그 사이에 이미 끝났다면 여기서 완료 처리된다.
+    private func restoreRunningSession() {
+        guard let state = RunningStateStore.load() else { return }
+
+        engine.restore(state)
+        now = .now
+
+        if let record = engine.completeIfElapsed(at: now) {
+            // 앱이 꺼져 있는 동안 끝난 세션. 종료 시각은 지금이 아니라 실제로 끝난 시점이다.
+            //
+            // 햅틱은 울리지 않는다. 그 세션이 끝날 때 이미 무음 배너가 떴고(§6-3),
+            // 몇 시간 뒤에 앱을 여는 순간 진동하는 것은 아무 의미가 없다.
+            finishCompleted(record, playHaptic: false)
+            return
+        }
+
+        switch engine.phase {
+        case .running:
+            startTicking()
+            setScreenAwake(true)
+            // 강제 종료돼도 예약된 알림은 남아 있지만, 같은 식별자로 덮어써 두면
+            // 어느 경우든 정확히 한 개만 남는다.
+            scheduleCompletionNotification()
+        case .paused, .idle:
+            break
+        }
+    }
 
     // MARK: - 다이얼 입력 (§4.1)
 
@@ -48,6 +85,8 @@ final class TimerViewModel {
         if !wasIdle {
             stopTicking()
             setScreenAwake(false)
+            notifications.cancelPending()
+            persistRunningState()
         }
 
         if engine.plannedMinutes != previousMinutes {
@@ -84,6 +123,8 @@ final class TimerViewModel {
         Haptics.warning()
         stopTicking()
         setScreenAwake(false)
+        notifications.cancelPending()
+        persistRunningState()
         refresh()
     }
 
@@ -97,6 +138,8 @@ final class TimerViewModel {
         engine.start(at: .now)
         startTicking()
         setScreenAwake(true)
+        persistRunningState()
+        scheduleCompletionNotification()
         refresh()
     }
 
@@ -105,6 +148,9 @@ final class TimerViewModel {
         // 멈춰 있는 동안은 1초마다 다시 그릴 이유가 없다
         stopTicking()
         setScreenAwake(false)
+        // §6-5 — 일시정지하면 예약을 반드시 지운다. 안 그러면 멈춰 있는데 알림이 뜬다.
+        notifications.cancelPending()
+        persistRunningState()
         refresh()
     }
 
@@ -112,6 +158,9 @@ final class TimerViewModel {
         engine.resume(at: .now)
         startTicking()
         setScreenAwake(true)
+        persistRunningState()
+        // §6-5 — 재개 시 남은 시간으로 재예약
+        scheduleCompletionNotification()
         refresh()
     }
 
@@ -128,18 +177,39 @@ final class TimerViewModel {
 
     // MARK: -
 
-    private func finishCompleted(_ record: SessionRecord) {
+    /// - Parameter playHaptic: 앱이 꺼져 있는 동안 끝난 세션을 뒤늦게 정리하는 경우에는 `false`.
+    private func finishCompleted(_ record: SessionRecord, playHaptic: Bool = true) {
         stopTicking()
         setScreenAwake(false)
+
+        // 이미 떴거나 곧 뜰 알림을 정리한다. 포그라운드에서 끝났다면 예약이 아직 남아 있다.
+        notifications.cancelPending()
+        RunningStateStore.clear()
 
         // 저장이 곧 통계 갱신이다. SessionStore 가 save 안에서 reload 까지 한다.
         store.save(record)
 
         // §6-3 — 알림음 없이 햅틱만
-        Haptics.success()
+        if playHaptic {
+            Haptics.success()
+        }
 
         // M4: 캘린더 이벤트 생성
         // M5: 통계 스냅샷 갱신 + 위젯 리로드 + Live Activity 종료
+    }
+
+    /// §5 — 상태가 바뀔 때마다 저장한다. 전이 사이에는 값이 변하지 않으므로 이걸로 충분하다.
+    private func persistRunningState() {
+        RunningStateStore.save(engine.running)
+    }
+
+    private func scheduleCompletionNotification() {
+        guard let endDate = engine.expectedEndDate else { return }
+        let minutes = engine.plannedMinutes
+        Task {
+            await notifications.refreshAuthorization()
+            await notifications.scheduleCompletion(at: endDate, plannedMinutes: minutes)
+        }
     }
 
     private func startTicking() {

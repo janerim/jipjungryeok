@@ -53,12 +53,12 @@ struct RootView: View {
 
 #Preview("라이트") {
     let store = SessionStore(inMemory: true)
-    return RootView(store: store, timerModel: TimerViewModel(store: store))
+    return RootView(store: store, timerModel: TimerViewModel(store: store, notifications: NotificationService()))
         .preferredColorScheme(.light)
 }
 
 #Preview("다크") {
     let store = SessionStore(inMemory: true)
-    return RootView(store: store, timerModel: TimerViewModel(store: store))
+    return RootView(store: store, timerModel: TimerViewModel(store: store, notifications: NotificationService()))
         .preferredColorScheme(.dark)
 }

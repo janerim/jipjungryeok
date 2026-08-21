@@ -11,17 +11,17 @@
 
 | 마일스톤 | 내용 | 상태 |
 |---|---|---|
-| M0 | 프로젝트 골격 (XcodeGen + FocusCore + App Group + Asset Catalog) | 작성 완료 · **Mac 빌드 검증 대기** |
-| M1 | 다이얼 & 타이머 코어 | 작성 완료 · **Mac 빌드 검증 대기** |
-| M2 | 영속화 & 통계 | 작성 완료 · **Mac 빌드 검증 대기** |
-| M3 | 알림 & 상태 복구 | — |
+| M0 | 프로젝트 골격 (XcodeGen + FocusCore + App Group + Asset Catalog) | 완료 · 빌드 검증됨 |
+| M1 | 다이얼 & 타이머 코어 | 완료 · 빌드 검증됨 |
+| M2 | 영속화 & 통계 | 완료 · 빌드 검증됨 |
+| M3 | 알림 & 상태 복구 | 작성 완료 · **Mac 빌드 검증 대기** |
 | M4 | 캘린더 연동 | — |
 | M5 | 위젯 & Live Activity | — |
 | M6 | Apple Watch (선택, 1차 릴리즈 이후) | — |
 
-> ⚠️ 코드는 Windows 에서 작성하고 있고 Swift 툴체인이 없다.
-> **컴파일·시뮬레이터 검증은 전부 Mac 단계에서 처음 이루어진다.** 첫 빌드에서
-> 컴파일 에러가 몰려 나올 수 있다는 전제로 진행 중.
+코드는 Windows 에서 쓰고 Mac 에서 빌드한다. 첫 빌드 결과와 환경 설정에서 걸린
+지점은 [docs/mac-first-build.md](docs/mac-first-build.md) 맨 위에 정리돼 있다.
+§12 수용 기준 중 제스처·통계 화면·위젯 다크 팔레트는 아직 사람이 직접 봐야 한다.
 
 ---
 
@@ -48,14 +48,22 @@ Xcode GUI 가 아니라 [project.yml](project.yml) 을 고치고 `xcodegen gener
 ### 테스트
 
 ```bash
-xcodebuild test -scheme Jipjungryeok -destination 'platform=iOS Simulator,name=iPhone 15'
-```
-
-또는 FocusCore 만:
-
-```bash
 cd FocusCore && swift test
 ```
+
+자동 테스트는 이것 하나다. `xcodebuild test` 는 쓰지 않는다 — 앱 타겟용 테스트 번들을
+만들지 않기로 했다. 검증이 필요한 로직은 `FocusCore` 로 옮긴다. 사유는 [CLAUDE.md](CLAUDE.md) 규칙 1.
+
+### 시뮬레이터 실행
+
+```bash
+xcodebuild build -scheme Jipjungryeok \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual
+```
+
+ad-hoc 서명이 필요하다. 빠지면 App Group entitlement 가 안 붙어
+`SessionStore` 가 `fatalError` 로 즉사한다.
 
 ---
 
@@ -79,7 +87,8 @@ cd FocusCore && swift test
 │   └── AppGroup.swift     # App Group 식별자와 공유 저장소
 ├── Jipjungryeok/          # iOS 앱 타겟
 │   ├── App/               # 진입점, RootView(3페이지), 햅틱, 페이지 인디케이터
-│   ├── Store/             # FocusSession(@Model), SessionStore
+│   ├── Store/             # FocusSession(@Model), SessionStore, RunningStateStore
+│   ├── Services/          # NotificationService (M4 에 CalendarService 추가)
 │   └── Features/          # Timer·Stats(구현) / Settings(자리만)
 └── FocusWidgets/          # 위젯 익스텐션 타겟
 ```

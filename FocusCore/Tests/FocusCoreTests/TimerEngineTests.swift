@@ -339,6 +339,57 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.remainingSeconds(at: at(600)), 1020)
     }
 
+    /// 일시정지 상태로 저장돼 있었다면 되살린 뒤에도 멈춰 있어야 한다.
+    /// 앱을 강제 종료했다 켰다는 이유로 타이머가 혼자 다시 흐르면 안 된다.
+    func testRestoreKeepsPausedSessionPaused() {
+        var engine = TimerEngine(plannedMinutes: 5)
+        let state = RunningState(
+            sessionID: UUID(),
+            startAt: t0,
+            plannedSeconds: 1500,
+            accumulatedPauseSeconds: 0,
+            pausedAt: at(300)
+        )
+
+        engine.restore(state)
+
+        XCTAssertEqual(engine.phase, .paused)
+        XCTAssertNil(engine.expectedEndDate)
+        // 복원 시각이 한참 뒤여도 300초 시점에서 얼어붙어 있어야 한다
+        XCTAssertEqual(engine.remainingSeconds(at: at(100_000)), 1200)
+    }
+
+    /// §12 앱 강제 종료 복구 — 꺼져 있는 동안 세션이 끝났다면, 되살리자마자
+    /// **실제로 끝난 시각**으로 완료 처리돼야 한다. 앱을 다시 연 시각이 아니다.
+    func testRestoredSessionThatAlreadyEndedCompletesAtItsRealEnd() throws {
+        var engine = TimerEngine(plannedMinutes: 5)
+        let state = RunningState(
+            sessionID: UUID(),
+            startAt: t0,
+            plannedSeconds: 1500,
+            accumulatedPauseSeconds: 120
+        )
+
+        engine.restore(state)
+        // 앱을 하루 뒤에 열었다
+        let record = try XCTUnwrap(engine.completeIfElapsed(at: at(86_400)))
+
+        XCTAssertTrue(record.isCompleted)
+        XCTAssertEqual(record.endAt, at(1620), "정지 시간 120초를 더한 종료 예정 시각")
+        XCTAssertEqual(record.actualSeconds, 1500, "하루를 집중한 것으로 기록되면 안 된다")
+        XCTAssertEqual(record.id, state.sessionID, "복원 전과 같은 세션이어야 중복 저장되지 않는다")
+        XCTAssertEqual(engine.phase, .idle)
+    }
+
+    /// 복원 직후에도 다이얼은 그 세션의 설정 시간을 가리킨다 (§6-3 idle 복귀 규칙).
+    func testRestoreAdoptsPlannedMinutesFromSavedState() {
+        var engine = TimerEngine(plannedMinutes: 5)
+        engine.restore(
+            RunningState(sessionID: UUID(), startAt: t0, plannedSeconds: 40 * 60)
+        )
+        XCTAssertEqual(engine.plannedMinutes, 40)
+    }
+
     /// 진행 상태는 Codable 로 왕복한다 (M3 에서 App Group UserDefaults 에 저장).
     func testRunningStateRoundTripsThroughCodable() throws {
         let state = RunningState(
