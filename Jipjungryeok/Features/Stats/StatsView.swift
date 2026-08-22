@@ -98,6 +98,7 @@ struct StatsView: View {
             .padding(.leading, 12)
             .contentShape(Rectangle())
         }
+        .pressable()
     }
 
     private func section<Content: View, Accessory: View>(

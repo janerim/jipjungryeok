@@ -32,12 +32,28 @@ struct TimerView: View {
                 Spacer(minLength: 0)
                     .frame(height: 48)
 
-                Text(model.countdownText)
-                    .font(Typography.countdown)
-                    .foregroundStyle(Palette.ink)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.easeInOut(duration: 0.2), value: model.countdownText)
+                // 숫자가 곧 시작·정지 버튼이다 (§4.1). 다이얼은 시간을 맞추는 일만 한다.
+                VStack(spacing: 6) {
+                    Text(model.countdownText)
+                        .font(Typography.countdown)
+                        .foregroundStyle(Palette.ink)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut(duration: 0.2), value: model.countdownText)
+
+                    // 눌러야 시작한다는 것을 알 방법이 이것뿐이다. 돌아가기 시작하면
+                    // 사라진다 — 그때부터는 숫자 자체가 상태를 말한다.
+                    Text(model.primaryHint)
+                        .font(Typography.statCaption)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .opacity(model.primaryHint.isEmpty ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.2), value: model.primaryHint)
+                }
+                // 글자만으로는 손가락이 닿기 어렵다.
+                .padding(.horizontal, 32)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .onTapGesture { model.primaryTapped() }
 
                 // 남는 공간은 전부 숫자 아래로 보낸다. 최소값은 하단 페이지
                 // 인디케이터와 겹치지 않을 만큼.

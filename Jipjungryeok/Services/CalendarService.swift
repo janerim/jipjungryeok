@@ -33,6 +33,16 @@ final class CalendarService {
         authorizationStatus == .writeOnly || authorizationStatus == .fullAccess
     }
 
+    /// 캘린더 **목록을 읽을 수 있는** 상태인지.
+    ///
+    /// 쓰기 전용 권한으로는 이벤트를 만들 수는 있어도 캘린더를 열거하지 못한다.
+    /// 시뮬레이터에서는 로컬 캘린더가 보여서 되는 줄 알았는데, 실기기의 iCloud
+    /// 계정에서는 빈 목록이 돌아온다. 그래서 캘린더 **선택** 기능만 전체 접근을
+    /// 요구하고, 기본 캘린더에 기록하는 것은 쓰기 전용 그대로 둔다 (§7).
+    var canListCalendars: Bool {
+        authorizationStatus == .fullAccess
+    }
+
     var isDenied: Bool {
         authorizationStatus == .denied || authorizationStatus == .restricted
     }
@@ -47,6 +57,19 @@ final class CalendarService {
         let granted = (try? await eventStore.requestWriteOnlyAccessToEvents()) ?? false
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
         return granted && canWrite
+    }
+
+    /// §4.3 — 사용자가 "캘린더 선택" 을 누를 때만 부른다.
+    ///
+    /// 기본값으로 요구하지 않는 이유는 §7 이다. 전체 접근은 사용자의 모든 일정을
+    /// 읽을 수 있다는 뜻이라, 그게 필요 없는 사람에게까지 물어보지 않는다.
+    @discardableResult
+    func requestFullAccess() async -> Bool {
+        if canListCalendars { return true }
+
+        let granted = (try? await eventStore.requestFullAccessToEvents()) ?? false
+        authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        return granted && canListCalendars
     }
 
     func refreshAuthorization() {
@@ -64,7 +87,7 @@ final class CalendarService {
     /// 구독 캘린더나 생일 달력처럼 쓸 수 없는 것은 걸러 낸다. 목록에 보였는데
     /// 고르고 나서 기록이 안 되는 것이 제일 헷갈린다.
     func writableCalendars() -> [EKCalendar] {
-        guard canWrite else { return [] }
+        guard canListCalendars else { return [] }
         return eventStore.calendars(for: .event)
             .filter(\.allowsContentModifications)
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }

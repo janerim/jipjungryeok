@@ -96,6 +96,7 @@ struct MemoSheet: View {
         // 44pt 히트 영역을 유지하면서 시각적으로는 헤더 오른쪽 끝에 맞춘다.
         .padding(.trailing, -12)
         .padding(.top, -12)
+        .pressable()
         .accessibilityLabel("메모 없이 닫기")
     }
 
@@ -109,6 +110,7 @@ struct MemoSheet: View {
                 RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
                     .fill(Palette.ink)
             )
+            .pressable(scale: 0.98)
     }
 }
 

@@ -69,8 +69,11 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        ## §7 캘린더 — 쓰기 전용 권한만 요청한다
+        ## §7 캘린더 — 기본은 쓰기 전용이다
         NSCalendarsWriteOnlyAccessUsageDescription: 완료한 집중 세션을 캘린더에 자동으로 기록하기 위해 사용합니다.
+        ## 기록할 캘린더를 **고를 때만** 전체 접근을 요청한다. 쓰기 전용 권한으로는
+        ## 캘린더 목록을 열거할 수 없기 때문이다(§7). 이 키가 없으면 요청하는 순간 앱이 죽는다.
+        NSCalendarsFullAccessUsageDescription: 기록할 캘린더를 직접 고를 수 있도록 캘린더 목록을 읽습니다. 일정 내용을 수집하거나 외부로 보내지 않습니다.
         ## §8.3 Live Activity
         NSSupportsLiveActivities: true
         ITSAppUsesNonExemptEncryption: false

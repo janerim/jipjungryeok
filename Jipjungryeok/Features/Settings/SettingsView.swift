@@ -42,7 +42,7 @@ struct SettingsView: View {
 
                 defaultMinutesRow
                 memoPromptRow
-                if calendar.canWrite && settings.isCalendarEnabled {
+                if settings.isCalendarEnabled && calendar.canWrite {
                     calendarPickerRow
                 }
                 themeRow
@@ -183,32 +183,72 @@ struct SettingsView: View {
 
     /// §7 어느 캘린더에 남길지.
     ///
-    /// 쓰기 전용 권한에서도 목록 조회가 되는 것을 확인하고 넣었다. 전체 접근으로
-    /// 올리지 않는다. 권한이 없거나 기록이 꺼져 있으면 이 줄 자체를 보여주지 않는다 —
-    /// 고를 수는 있는데 기록이 안 되는 상태가 제일 헷갈린다.
+    /// **캘린더 목록 조회에는 전체 접근 권한이 필요하다.** 쓰기 전용 권한으로는
+    /// 이벤트를 만들 수는 있어도 캘린더를 열거하지 못한다 — 시뮬레이터에서는 로컬
+    /// 캘린더가 보여서 되는 줄 알았는데 실기기의 iCloud 계정에서는 빈 목록이 온다.
+    ///
+    /// 그래서 기본은 쓰기 전용 그대로 두고, 고르고 싶은 사람만 여기서 권한을 올린다.
+    /// 전체 접근은 사용자의 모든 일정을 읽을 수 있다는 뜻이라 필요 없는 사람에게까지
+    /// 물어보지 않는다.
     private var calendarPickerRow: some View {
         card {
-            HStack(spacing: 0) {
-                Text("기록할 캘린더")
-                    .foregroundStyle(Palette.ink)
+            if calendar.canListCalendars {
+                calendarMenu
+            } else {
+                calendarAccessUpgrade
+            }
+        }
+    }
 
-                Spacer(minLength: 12)
+    private var calendarMenu: some View {
+        HStack(spacing: 0) {
+            Text("기록할 캘린더")
+                .foregroundStyle(Palette.ink)
 
-                Menu {
-                    Button("기본 캘린더") { settings.calendarIdentifier = nil }
-                    ForEach(calendar.writableCalendars(), id: \.calendarIdentifier) { item in
-                        Button(item.title) { settings.calendarIdentifier = item.calendarIdentifier }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(selectedCalendarTitle)
-                            .foregroundStyle(Palette.inkSecondary)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Palette.inkSecondary)
-                    }
+            Spacer(minLength: 12)
+
+            Menu {
+                Button("기본 캘린더") { settings.calendarIdentifier = nil }
+                ForEach(calendar.writableCalendars(), id: \.calendarIdentifier) { item in
+                    Button(item.title) { settings.calendarIdentifier = item.calendarIdentifier }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(selectedCalendarTitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Palette.inkSecondary)
                 }
             }
+        }
+    }
+
+    /// 목록이 비어 있을 때 아무것도 안 보여주면 "왜 안 나오지" 로 끝난다.
+    /// 이유와 해결 방법을 같은 자리에 놓는다.
+    private var calendarAccessUpgrade: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("기록할 캘린더")
+                    .foregroundStyle(Palette.ink)
+                Text("지금은 기본 캘린더에 남깁니다. 고르려면 캘린더 읽기 권한이 필요합니다.")
+                    .font(Typography.statCaption)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button("캘린더 선택 허용") {
+                Task { await calendar.requestFullAccess() }
+            }
+            .font(Typography.statCaption)
+            .foregroundStyle(Palette.background)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
+                    .fill(Palette.ink)
+            )
+            .pressable()
         }
     }
 
@@ -260,6 +300,7 @@ struct SettingsView: View {
                 )
                 .contentShape(Rectangle())
         }
+        .pressable()
         .accessibilityLabel("\(theme.displayName) 색")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }

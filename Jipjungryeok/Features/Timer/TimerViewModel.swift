@@ -58,6 +58,15 @@ final class TimerViewModel {
 
     var dialFraction: Double { engine.dialFraction(at: now) }
 
+    /// 숫자 아래 한 줄. 돌아가는 중에는 비운다 — 그때는 숫자가 스스로 상태를 말한다.
+    var primaryHint: String {
+        switch engine.phase {
+        case .idle:   "탭하여 시작"
+        case .paused: "탭하여 계속"
+        case .running: ""
+        }
+    }
+
     // MARK: - 앱 강제 종료 복구 (§12)
 
     /// 저장해 둔 진행 상태가 있으면 되살린다.
@@ -121,9 +130,29 @@ final class TimerViewModel {
     }
 
     /// §4.1 — idle 에서 손을 떼면 즉시 카운트다운이 시작된다.
+    /// 손을 떼도 시작하지 않는다.
+    ///
+    /// 예전에는 여기서 바로 `start()` 했다(§4.1 옛 규칙). 시간을 맞추다 손이 미끄러지면
+    /// 원하지 않은 세션이 시작되고, 그걸 되돌리려면 길게 눌러 중지해야 했다.
+    /// 시작은 `primaryTapped()` 이 맡는다 — 의도한 행동이어야 시작된다.
     func dialDragEnded() {
         guard engine.phase == .idle else { return }
-        start()
+        persistRunningState()
+    }
+
+    /// §4.1 하단 숫자 탭 — 이 앱의 시작·정지 버튼이다.
+    ///
+    /// idle 이면 시작, running 이면 일시정지, paused 면 재개.
+    /// 완전히 끝내는 것은 다이얼 길게 누르기가 맡는다(§4.1).
+    func primaryTapped() {
+        switch engine.phase {
+        case .idle:
+            start()
+        case .running:
+            pause()
+        case .paused:
+            resume()
+        }
     }
 
     /// running 이면 일시정지, paused 면 재개. idle 에서는 아무 일도 없다.

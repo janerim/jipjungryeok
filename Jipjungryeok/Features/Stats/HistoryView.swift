@@ -51,6 +51,7 @@ struct HistoryView: View {
                     .contentShape(Rectangle())
             }
             .padding(.trailing, -12)
+            .pressable()
             .accessibilityLabel("닫기")
         }
         .padding(.horizontal, 24)
