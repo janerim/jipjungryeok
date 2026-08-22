@@ -21,7 +21,7 @@ struct MemoSheet: View {
             Palette.background
                 .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     header
                     Spacer(minLength: 12)
@@ -31,13 +31,15 @@ struct MemoSheet: View {
                 // 한 줄만 보이면 길게 쓸 생각이 안 든다. 처음부터 여러 줄 높이를
                 // 잡아두고, 늘어나도 시트가 밀리지 않을 만큼만 허용한다.
                 TextField("무엇을 했나요?", text: $memo, axis: .vertical)
-                    .font(Typography.statValue)
+                    // 시트 제목과 같은 크기. 여기가 제목보다 크면 한 줄짜리 메모를
+                    // 받는 칸이 화면의 주인공처럼 보인다.
+                    .font(Typography.sheetTitle)
                     .foregroundStyle(Palette.ink)
-                    .lineLimit(4...8)
+                    .lineLimit(4...6)
                     .focused($isFieldFocused)
                     .submitLabel(.done)
                     .onSubmit { onSubmit(memo) }
-                    .frame(minHeight: 180, alignment: .topLeading)
+                    .frame(minHeight: 128, alignment: .topLeading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .overlay(
@@ -45,15 +47,13 @@ struct MemoSheet: View {
                             .stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
                     )
 
-                Spacer(minLength: 0)
-
                 buttons
             }
             .padding(.horizontal, 24)
             .padding(.top, 28)
             .padding(.bottom, 24)
         }
-        .presentationDetents([.height(460)])
+        .presentationDetents([.height(352)])
         .presentationDragIndicator(.visible)
         .onAppear { isFieldFocused = true }
     }
@@ -101,10 +101,10 @@ struct MemoSheet: View {
 
     private var buttons: some View {
         Button("저장") { onSubmit(memo) }
-            .font(Typography.statValue)
+            .font(Typography.sheetTitle)
             .foregroundStyle(Palette.background)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 13)
             .background(
                 RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
                     .fill(Palette.ink)
