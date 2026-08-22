@@ -49,9 +49,20 @@ struct DialView: View {
 
     private var minorTickLength: CGFloat { radius * 0.055 }
     private var majorTickLength: CGFloat { radius * 0.10 }
-    private var labelRadius: CGFloat { radius * 0.80 }
-    /// 부채꼴은 숫자 라벨 안쪽에 그려야 눈금과 겹치지 않는다.
-    private var sectorRadius: CGFloat { radius * 0.68 }
+
+    /// 숫자 라벨을 눈금 **바깥**에 둔다.
+    ///
+    /// 라벨이 눈금 안쪽에 있으면 부채꼴이 라벨에 막혀 반지름의 70%대에서 멈춘다.
+    /// 밖으로 빼면 원 안쪽이 통째로 부채꼴 몫이 된다. 라벨이 차지하는 자리는
+    /// 어차피 터치 여백(`dialHitSlop`, 사방 40pt)이라 화면을 더 먹지도 않는다.
+    private var labelRadius: CGFloat { radius + 20 }
+
+    /// 부채꼴은 눈금 안쪽 끝에서 4pt 만 띄운다.
+    ///
+    /// 채워진 넓이가 곧 남은 시간이라 이 도형이 화면의 주인공이다.
+    /// 비율이 아니라 눈금 길이에서 빼는 이유는, 작은 기기에서 비율로 잡으면
+    /// 간격이 같이 줄어 눈금에 붙어버리기 때문이다.
+    private var sectorRadius: CGFloat { radius - majorTickLength - 4 }
 
     // MARK: -
 
@@ -95,25 +106,37 @@ struct DialView: View {
         .animation(.easeInOut(duration: 0.2), value: phase)
     }
 
-    /// 5분마다 짧은 틱, 15분마다 굵은 틱.
+    /// 1분마다 실눈금, 5분마다 중간, 15분마다 굵고 길게 (라벨이 붙는 자리).
     ///
-    /// 한 바퀴가 90분이 되면서 1분 틱은 90개가 되어 260pt 다이얼에서 9pt 간격까지
-    /// 좁아진다. 회색 띠처럼 뭉개지므로 5분으로 묶는다. **스냅은 그대로 1분 단위다**
-    /// — 눈금 간격과 스냅 단위는 별개다.
+    /// 세 단계로 나누는 것이 핵심이다. 90개를 같은 굵기로 그리면 정말 회색 띠가 되지만,
+    /// 위계가 있으면 눈은 15분 단위를 먼저 읽고 그 사이를 1분 눈금으로 센다.
+    /// 손목시계 문자판이 쓰는 방식이다.
+    ///
+    /// **스냅은 원래부터 1분 단위였다** — 눈금은 그것을 눈에 보이게 만들 뿐이고,
+    /// 둘은 별개다.
     private var ticks: some View {
-        ForEach(Array(stride(from: 0, to: TimerEngine.maximumMinutes, by: Self.tickInterval)), id: \.self) { minute in
-            let isMajor = minute % Self.labelInterval == 0
+        ForEach(0..<TimerEngine.maximumMinutes, id: \.self) { minute in
+            let tier = tickTier(for: minute)
             Path { path in
                 path.move(to: point(atMinute: Double(minute), radius: radius))
                 path.addLine(
-                    to: point(
-                        atMinute: Double(minute),
-                        radius: radius - (isMajor ? majorTickLength : minorTickLength)
-                    )
+                    to: point(atMinute: Double(minute), radius: radius - tier.length)
                 )
             }
-            .stroke(Palette.inkSecondary, lineWidth: isMajor ? 2 : 1)
+            .stroke(Palette.inkSecondary, lineWidth: tier.width)
+            // 실눈금까지 같은 농도로 찍으면 링 전체가 탁해진다.
+            .opacity(tier.opacity)
         }
+    }
+
+    private func tickTier(for minute: Int) -> (length: CGFloat, width: CGFloat, opacity: Double) {
+        if minute % Self.labelInterval == 0 {
+            return (majorTickLength, 2, 1)
+        }
+        if minute % Self.tickInterval == 0 {
+            return (minorTickLength, 1, 0.85)
+        }
+        return (minorTickLength * 0.5, 0.75, 0.45)
     }
 
     /// 0, 15, 30, 45, 60, 75

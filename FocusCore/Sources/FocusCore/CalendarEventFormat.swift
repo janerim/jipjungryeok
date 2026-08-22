@@ -6,17 +6,22 @@ import Foundation
 /// 이미 만들어진 과거 이벤트와 새 이벤트가 달라 보이므로 테스트로 못박아 둔다.
 public enum CalendarEventFormat {
 
-    /// §7 전용 캘린더 이름. 사용자의 캘린더 앱에 이 이름으로 나타난다.
-    public static let calendarName = "집중"
-
-    /// 이벤트 제목. 완료면 `🎯 집중 25분`, 중도 중지면 `🎯 집중 25분 (중단)`.
+    /// §7 이벤트 제목에 들어가는 라벨.
     ///
-    /// 분은 `plannedSeconds` 가 아니라 **실제 집중한 시간**에서 뽑는다.
-    /// 25분을 맞춰놓고 7분 만에 멈춘 세션이 캘린더에 "25분" 으로 남으면 안 된다.
-    /// 완료된 세션은 둘이 같으므로 차이가 없다.
+    /// 전용 캘린더를 만들지 않으므로(기본 캘린더에 기록한다) 사용자의 일반 일정과
+    /// 섞인다. 제목의 `🎯` 와 이 라벨이 집중 세션을 알아보는 유일한 단서다.
+    public static let sessionLabel = "집중"
+
+    /// 이벤트 제목. 완료면 `🎯 집중`, 중도 중지면 `🎯 집중 (중단)`.
+    ///
+    /// **분은 넣지 않는다.** 이벤트에 시작·종료 시각이 이미 들어 있어서 캘린더 앱이
+    /// 길이를 알아서 보여준다. 제목에까지 적으면 같은 정보가 두 번 나오고,
+    /// 하루치를 펼쳤을 때 제목이 길어 읽기만 나빠진다.
+    ///
+    /// `(중단)` 은 남긴다. 계획한 시간을 못 채웠다는 사실은 시작·종료 시각만으로는
+    /// 드러나지 않는다.
     public static func eventTitle(for record: SessionRecord) -> String {
-        let minutes = TimeDisplay.minutes(record.actualSeconds)
-        let base = "🎯 \(calendarName) \(minutes)분"
+        let base = "🎯 \(sessionLabel)"
         return record.isCompleted ? base : "\(base) (중단)"
     }
 

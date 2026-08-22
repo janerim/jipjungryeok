@@ -242,17 +242,18 @@ struct StatsSnapshot: Codable {
 - 권한: iOS 17+ 기준 `requestWriteOnlyAccessToEvents()` 사용 (읽기 권한은 요청하지 않는다 — 쓰기 전용이면 충분하고 심사·프라이버시에서 유리)
 - `Info.plist`: `NSCalendarsWriteOnlyAccessUsageDescription`
   값 예시: `완료한 집중 세션을 캘린더에 자동으로 기록하기 위해 사용합니다.`
-- **전용 캘린더 생성**: 앱 최초 연동 시 `집중` 이름의 `EKCalendar`를 생성한다.
-  - source 우선순위: iCloud(`.calDAV` 중 title이 "iCloud") → `.local`
-  - 생성된 `calendarIdentifier`는 UserDefaults에 저장. 다음 실행 시 존재 여부를 확인하고, 사용자가 삭제했으면 재생성한다.
+- **전용 캘린더는 만들지 않는다.** `defaultCalendarForNewEvents`(사용자의 기본 캘린더)에 기록한다.
+  - 전용 캘린더를 두려면 매 세션마다 기존 것을 찾아내야 하는데, 그 조회(`calendar(withIdentifier:)`, `calendars(for:)`)가 **쓰기 전용 권한에서 막힐 수 있다.** 막히면 세션마다 `집중` 캘린더가 새로 생겨 사용자의 캘린더 목록이 오염된다.
+  - 조회가 필요 없는 구조로 바꿔 그 실패 모드를 없앴다. 대신 집중 세션이 사용자의 일반 일정과 같은 캘린더에 섞이며, 제목의 `🎯` 접두어가 유일한 구분 수단이다.
+  - 기본 캘린더가 없으면(쓰기 가능한 캘린더가 없는 계정 구성) 기록하지 않고 아래 재시도 큐로 넘긴다.
 - **이벤트 스펙**
 
   | 필드 | 값 |
   |---|---|
-  | title | `🎯 집중 {N}분` (중도 중지 시 `🎯 집중 {N}분 (중단)`) |
+  | title | `🎯 집중` (중도 중지 시 `🎯 집중 (중단)`) — 길이는 시작·종료 시각이 전달하므로 제목에 넣지 않는다 |
   | startDate | `session.startAt` |
   | endDate | `session.endAt` |
-  | calendar | 전용 "집중" 캘린더 |
+  | calendar | 사용자의 기본 캘린더 (`defaultCalendarForNewEvents`) |
   | alarms | 없음 |
   | notes | 세션 메모 (없으면 비움) |
 
@@ -419,7 +420,7 @@ Jipjungryeok/
 - **위젯과 워치 앱도 동일한 Color Set을 사용한다.** 위젯은 Asset Catalog를 익스텐션 타깃에도 포함시켜야 하며, 다크에서 대비가 깨지지 않는지 별도 확인이 필요하다
 - 워치는 항상 다크 팔레트를 사용한다 (watchOS는 라이트모드가 없다)
 
-- 폰트: SF Pro (시스템). 다이얼 하단 숫자 `.system(size: 64, weight: .bold, design: .rounded)`
+- 폰트: SF Pro (시스템). 다이얼 하단 숫자 `.system(size: 32, weight: .bold, design: .rounded)` — 주인공은 다이얼이므로 숫자가 시선을 뺏지 않게 한다
 - 카드: `cornerRadius 16`, 1px `stroke` 테두리, 배경은 투명
 
 ---
@@ -435,7 +436,7 @@ Jipjungryeok/
 - **M3 — 알림 & 상태 복구**
   로컬 알림 예약/취소, RunningState 복구(앱 강제 종료 후 재실행 시 이어서 표시).
 - **M4 — 캘린더 연동**
-  권한 요청, 전용 캘린더 생성, 이벤트 기록, 실패 재시도 큐, 설정 토글.
+  권한 요청, 기본 캘린더에 이벤트 기록, 실패 재시도 큐, 설정 토글.
 - **M5 — 위젯 & Live Activity**
   App Group 확정, 스냅샷 라이터, 홈/잠금화면 위젯, Live Activity.
 - **M6 — Apple Watch (선택, 1차 릴리즈 이후)**
@@ -468,9 +469,10 @@ Jipjungryeok/
 - [ ] 세션 0건일 때 빈 상태가 크래시 없이 그려진다
 
 **캘린더**
-- [ ] 권한 허용 후 세션 완료 시 "집중" 캘린더에 이벤트가 생성된다
+- [ ] 권한 허용 후 세션 완료 시 **기본 캘린더**에 `🎯 집중` 이벤트가 생성된다
 - [ ] 권한 거부 상태에서도 앱이 정상 동작하고 세션은 저장된다
-- [ ] 사용자가 "집중" 캘린더를 삭제해도 다음 세션에서 재생성된다
+- [ ] 앱을 여러 번 껐다 켜도 `집중` 이라는 이름의 캘린더가 **새로 생기지 않는다**
+- [ ] 중도 중지한 세션은 제목에 `(중단)` 이 붙고, 이벤트 길이가 **실제 집중한 시간**과 같다
 
 **위젯**
 - [ ] 세션 완료 후 5초 이내에 홈화면 위젯의 오늘 시간이 갱신된다

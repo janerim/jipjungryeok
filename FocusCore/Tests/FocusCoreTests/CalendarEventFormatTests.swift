@@ -27,34 +27,40 @@ final class CalendarEventFormatTests: XCTestCase {
         let title = CalendarEventFormat.eventTitle(
             for: record(planned: 1500, actual: 1500, completed: true)
         )
-        XCTAssertEqual(title, "🎯 집중 25분")
+        XCTAssertEqual(title, "🎯 집중")
     }
 
     func testStoppedSessionTitleIsMarked() {
         let title = CalendarEventFormat.eventTitle(
             for: record(planned: 1500, actual: 1500, completed: false)
         )
-        XCTAssertEqual(title, "🎯 집중 25분 (중단)")
+        XCTAssertEqual(title, "🎯 집중 (중단)")
     }
 
-    /// 25분을 맞춰놓고 7분 만에 멈춘 세션이 "25분" 으로 남으면 안 된다.
-    func testStoppedSessionUsesActualNotPlannedMinutes() {
-        let title = CalendarEventFormat.eventTitle(
-            for: record(planned: 1500, actual: 7 * 60, completed: false)
+    /// 제목은 세션 길이에 좌우되지 않는다. 길이는 시작·종료 시각이 전달하므로
+    /// 7분짜리든 90분짜리든 제목이 같아야 한다.
+    func testTitleDoesNotVaryWithDuration() {
+        let short = CalendarEventFormat.eventTitle(
+            for: record(planned: 90 * 60, actual: 7 * 60, completed: true)
         )
-        XCTAssertEqual(title, "🎯 집중 7분 (중단)")
-    }
-
-    /// 90분까지 늘어난 다이얼 최대값도 그대로 나온다.
-    func testLongSessionTitle() {
-        let title = CalendarEventFormat.eventTitle(
+        let long = CalendarEventFormat.eventTitle(
             for: record(planned: 90 * 60, actual: 90 * 60, completed: true)
         )
-        XCTAssertEqual(title, "🎯 집중 90분")
+        XCTAssertEqual(short, long)
+        XCTAssertEqual(short, "🎯 집중")
     }
 
-    func testCalendarNameIsStable() {
-        XCTAssertEqual(CalendarEventFormat.calendarName, "집중")
+    /// 제목에 숫자가 섞여 들어가면 캘린더에서 길이 정보가 두 번 나온다.
+    func testTitleContainsNoDigits() {
+        let title = CalendarEventFormat.eventTitle(
+            for: record(planned: 1500, actual: 1500, completed: true)
+        )
+        XCTAssertNil(title.rangeOfCharacter(from: .decimalDigits))
+    }
+
+    /// 제목 라벨이 바뀌면 과거 이벤트와 새 이벤트가 달라 보인다.
+    func testSessionLabelIsStable() {
+        XCTAssertEqual(CalendarEventFormat.sessionLabel, "집중")
     }
 
     // MARK: - 메모 → 이벤트 notes
@@ -92,6 +98,6 @@ final class CalendarEventFormatTests: XCTestCase {
         let title = CalendarEventFormat.eventTitle(
             for: record(planned: 1500, actual: 1500, completed: true, memo: "기획서 정리")
         )
-        XCTAssertEqual(title, "🎯 집중 25분")
+        XCTAssertEqual(title, "🎯 집중")
     }
 }

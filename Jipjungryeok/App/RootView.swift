@@ -68,8 +68,9 @@ struct RootView: View {
         }
     }
 
-    /// 시트를 스와이프로 내리는 것도 "건너뛰기" 로 친다.
-    /// 그래야 캘린더 기록이 대기 상태로 남지 않는다.
+    /// 시트에서 나가는 길은 오른쪽 위 X 와 아래로 내리기 둘 다이며, 어느 쪽이든
+    /// 메모 없이 마무리한다. 그래야 캘린더 기록이 대기 상태로 남지 않는다.
+    /// `finalizeMemoPrompt` 는 대기열을 먼저 비우므로 두 번 불려도 안전하다.
     private var memoBinding: Binding<SessionRecord?> {
         Binding(
             get: { recorder.memoPrompt },
