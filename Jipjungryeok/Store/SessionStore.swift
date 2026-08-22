@@ -115,6 +115,18 @@ final class SessionStore {
         return ((try? context.fetch(descriptor)) ?? []).map(\.record)
     }
 
+    /// §4.2 기록 화면이 쓰는 전체 이력.
+    ///
+    /// 화면에 들어갈 때만 부르고 결과를 들고 있지 않는다. 세션은 한 건이 수십 바이트라
+    /// 수천 건이어도 가볍고, 상시 보관하면 세션이 끝날 때마다 갱신해 줘야 한다.
+    ///
+    /// 정렬을 여기서 하지 않는 이유는 `SessionHistory.byDay` 가 §4.2 규칙(`startAt` 기준)에
+    /// 맞춰 다시 묶고 정렬하기 때문이다. 두 곳에서 정렬하면 규칙이 갈라진다.
+    func allRecords() -> [SessionRecord] {
+        let descriptor = FetchDescriptor<FocusSession>()
+        return ((try? context.fetch(descriptor)) ?? []).map(\.record)
+    }
+
     /// §4.2 회고는 "최근 **완료** 세션" 이므로 중도 중지한 세션은 빼고 보여준다.
     /// 통계 합계에는 들어가지만 회고 카드에는 안 나온다.
     private func fetchRecentCompleted() -> [SessionRecord] {
