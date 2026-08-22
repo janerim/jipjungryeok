@@ -1,6 +1,14 @@
 import UIKit
 
-/// §6-3 — 이 앱은 알림음을 쓰지 않는다. 피드백은 전부 햅틱이다.
+/// §6-3 — 이 앱은 알림음을 쓰지 않는다.
+///
+/// **햅틱은 다이얼 스냅에만 쓴다.** 세션 완료·중지에는 진동을 주지 않는다.
+/// 완료는 "조용히" 가 이 앱의 약속이고(§6-3), 집중이 끝난 순간 손목이나 주머니가
+/// 울리는 것은 그 약속과 어긋난다. 백그라운드에서는 무음 배너가, 포그라운드에서는
+/// 화면 자체가 이미 끝났다는 것을 말해 준다.
+///
+/// 다이얼 스냅 햅틱은 남긴다. 1분 단위로 걸렸다는 신호가 없으면 몇 분에 멈췄는지
+/// 손끝으로 알 수 없어서, 화면을 계속 봐야 한다.
 ///
 /// UIKit 에 의존하므로 `FocusCore` 가 아니라 앱 타깃에 둔다.
 @MainActor
@@ -16,15 +24,5 @@ enum Haptics {
 
     static func selection() {
         selectionGenerator.selectionChanged()
-    }
-
-    /// 세션 완료 (§6-3)
-    static func success() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-    }
-
-    /// 세션 중지 (§4.1 길게 누르기)
-    static func warning() {
-        UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
 }

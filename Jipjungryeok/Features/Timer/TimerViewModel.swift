@@ -84,7 +84,7 @@ final class TimerViewModel {
             //
             // 햅틱은 울리지 않는다. 그 세션이 끝날 때 이미 무음 배너가 떴고(§6-3),
             // 몇 시간 뒤에 앱을 여는 순간 진동하는 것은 아무 의미가 없다.
-            finishCompleted(record, playHaptic: false)
+            finishCompleted(record)
             return
         }
 
@@ -174,7 +174,6 @@ final class TimerViewModel {
         if let finished = engine.stop(at: .now) {
             recorder.finish(finished)
         }
-        Haptics.warning()
         stopTicking()
         setScreenAwake(false)
         notifications.cancelPending()
@@ -236,8 +235,7 @@ final class TimerViewModel {
 
     // MARK: -
 
-    /// - Parameter playHaptic: 앱이 꺼져 있는 동안 끝난 세션을 뒤늦게 정리하는 경우에는 `false`.
-    private func finishCompleted(_ record: SessionRecord, playHaptic: Bool = true) {
+    private func finishCompleted(_ record: SessionRecord) {
         stopTicking()
         setScreenAwake(false)
 
@@ -251,11 +249,6 @@ final class TimerViewModel {
 
         // §8.3 — 끝난 세션이 잠금화면에서 계속 도는 것처럼 보이면 안 된다.
         liveActivity.end()
-
-        // §6-3 — 알림음 없이 햅틱만
-        if playHaptic {
-            Haptics.success()
-        }
 
         // 통계 스냅샷 갱신과 위젯 리로드는 recorder.finish → SessionStore.reload 가 한다.
     }
