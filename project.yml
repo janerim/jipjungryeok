@@ -25,7 +25,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     ## 자동 서명이므로 최초 1회 Xcode > Signing & Capabilities 에서 팀만 선택하면 된다.
     ## 팀 ID 를 고정하고 싶으면 아래 줄의 주석을 풀고 값을 채울 것.
-    # DEVELOPMENT_TEAM: XXXXXXXXXX
+    DEVELOPMENT_TEAM: AN8NXDLMN7
     TARGETED_DEVICE_FAMILY: "1"  # iPhone 전용 (§1-1)
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 

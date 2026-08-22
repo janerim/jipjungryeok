@@ -9,7 +9,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "▸ 서명 인증서 확인"
-if ! security find-identity -v -p codesigning 2>/dev/null | grep -q "Apple Develop"; then
+# find-identity 대신 인증서를 직접 찾는다. find-identity 는 개인 키까지 열어야 해서
+# 샌드박스된 셸에서는 인증서가 멀쩡히 있어도 0 을 돌려준다. 우리가 필요한 것은
+# 인증서 subject 의 OU(팀 ID)뿐이라 이걸로 충분하다.
+if ! security find-certificate -a -c "Apple Development" -p 2>/dev/null | grep -q "BEGIN CERTIFICATE"; then
   cat <<'MSG'
 ✗ 개발용 서명 인증서가 없습니다.
 
