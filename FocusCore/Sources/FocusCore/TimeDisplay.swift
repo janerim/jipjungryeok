@@ -8,18 +8,17 @@ public enum TimeDisplay {
 
     // MARK: - 길이
 
-    /// §4.1 타이머 하단 큰 숫자.
+    /// §4.1 실행 중 남은 시간. 항상 `M:SS` 로 **매초 움직인다**.
     ///
-    /// 60초 이상이면 분 단위 정수(올림), 60초 미만이면 `MM:SS`.
-    /// 올림이므로 25분 세션은 시작 후 60초 동안 `25` 로 보이다가 `24` 로 넘어간다.
-    /// 단위(`분`)는 붙이지 않는다 — 화면 쪽에서 필요하면 덧붙인다.
+    /// 예전에는 1분 이상일 때 올림한 분만 보여줬다(25분 세션이 60초 동안 `25`).
+    /// 화면의 주인공 숫자가 1분씩 멈춰 있으니 타이머가 고장난 것처럼 보였다 —
+    /// 실제로 그렇게 신고가 들어왔다. 부채꼴은 계속 줄어드는데 숫자만 굳어 있었다.
+    ///
+    /// 분은 0 을 채우지 않는다(`3:07`). 앞자리 0 은 큰 숫자에서 눈에 거슬리고,
+    /// 자릿수가 흔들리는 것은 `monospacedDigit()` 이 잡아 준다.
     public static func countdown(_ seconds: Int) -> String {
         let value = max(0, seconds)
-        if value >= 60 {
-            let minutes = Int((Double(value) / 60).rounded(.up))
-            return "\(minutes)"
-        }
-        return String(format: "%02d:%02d", value / 60, value % 60)
+        return String(format: "%d:%02d", value / 60, value % 60)
     }
 
     /// §4.2 통계 표기. 35분 → `00:35`, 3시간 5분 → `03:05`

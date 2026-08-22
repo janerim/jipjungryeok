@@ -43,7 +43,18 @@ final class TimerViewModel {
 
     var remainingSeconds: Int { engine.remainingSeconds(at: now) }
 
-    var countdownText: String { TimeDisplay.countdown(remainingSeconds) }
+    /// 쉬고 있을 때는 분만, 돌아갈 때는 `M:SS`.
+    ///
+    /// 다이얼을 맞추는 중에 `25:00` 이 보이면 초 단위로 맞추는 것처럼 읽힌다.
+    /// 스냅은 1분 단위이므로 그 자리에서 초는 의미가 없다.
+    var countdownText: String {
+        switch engine.phase {
+        case .idle:
+            return "\(engine.plannedMinutes)"
+        case .running, .paused:
+            return TimeDisplay.countdown(remainingSeconds)
+        }
+    }
 
     var dialFraction: Double { engine.dialFraction(at: now) }
 

@@ -145,7 +145,7 @@ struct SettingsView: View {
     }
 
     private func changeDefaultMinutes(by delta: Int) {
-        settings.defaultMinutes = AppSettings.clampedMinutes(settings.defaultMinutes + delta)
+        settings.setDefaultMinutes(settings.defaultMinutes + delta)
         // 쉬고 있는 다이얼은 즉시 새 값으로 옮겨 준다. 설정하고 돌아갔더니
         // 그대로면 적용이 안 된 줄 안다.
         timerModel.applyDefaultMinutes(settings.defaultMinutes)

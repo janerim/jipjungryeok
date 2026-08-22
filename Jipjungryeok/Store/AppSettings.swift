@@ -56,11 +56,18 @@ final class AppSettings {
     /// 매번 같은 시간으로 시작하는 사람이 많아서 기본값을 고를 수 있게 했다.
     /// 5분 단위인 이유는, 여기서 1분 단위로 맞출 일이 없기 때문이다 —
     /// 그날그날의 미세 조정은 다이얼이 한다.
-    var defaultMinutes: Int {
+    /// **`didSet` 안에서 자기 자신에 대입하지 말 것.** `@Observable` 이 저장 프로퍼티를
+    /// 계산 프로퍼티로 바꾸기 때문에 setter 가 다시 불려 무한 재귀로 죽는다.
+    /// 일반 저장 프로퍼티에서는 재귀하지 않지만 여기서는 다르다.
+    /// 그래서 범위 보정은 아래 `setDefaultMinutes(_:)` 가 맡고, 바깥에서는 그것만 쓴다.
+    private(set) var defaultMinutes: Int {
         didSet {
-            defaultMinutes = Self.clampedMinutes(defaultMinutes)
             AppGroup.defaults.set(defaultMinutes, forKey: Self.defaultMinutesKey)
         }
+    }
+
+    func setDefaultMinutes(_ minutes: Int) {
+        defaultMinutes = Self.clampedMinutes(minutes)
     }
 
     static let minutesStep = 5

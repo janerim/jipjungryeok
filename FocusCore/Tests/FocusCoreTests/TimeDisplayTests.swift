@@ -7,24 +7,24 @@ final class TimeDisplayTests: XCTestCase {
     /// 60초 이상이면 분 단위 정수, 올림.
     /// 25분 세션은 시작 후 60초 동안 `25` 로 보이다가 `24` 로 넘어간다.
     func testCountdownShowsCeilingMinutesAboveOneMinute() {
-        XCTAssertEqual(TimeDisplay.countdown(1500), "25")
-        XCTAssertEqual(TimeDisplay.countdown(1499), "25")
-        XCTAssertEqual(TimeDisplay.countdown(1441), "25")
-        XCTAssertEqual(TimeDisplay.countdown(1440), "24")
-        XCTAssertEqual(TimeDisplay.countdown(61), "2")
-        XCTAssertEqual(TimeDisplay.countdown(60), "1")
+        XCTAssertEqual(TimeDisplay.countdown(1500), "25:00")
+        XCTAssertEqual(TimeDisplay.countdown(1499), "24:59")
+        XCTAssertEqual(TimeDisplay.countdown(1441), "24:01")
+        XCTAssertEqual(TimeDisplay.countdown(1440), "24:00")
+        XCTAssertEqual(TimeDisplay.countdown(61), "1:01")
+        XCTAssertEqual(TimeDisplay.countdown(60), "1:00")
     }
 
     /// 60초 미만이면 MM:SS.
     func testCountdownSwitchesToMinuteSecondsUnderOneMinute() {
-        XCTAssertEqual(TimeDisplay.countdown(59), "00:59")
-        XCTAssertEqual(TimeDisplay.countdown(9), "00:09")
-        XCTAssertEqual(TimeDisplay.countdown(0), "00:00")
+        XCTAssertEqual(TimeDisplay.countdown(59), "0:59")
+        XCTAssertEqual(TimeDisplay.countdown(9), "0:09")
+        XCTAssertEqual(TimeDisplay.countdown(0), "0:00")
     }
 
     /// 음수가 흘러들어와도 0 으로 막는다.
     func testCountdownClampsNegative() {
-        XCTAssertEqual(TimeDisplay.countdown(-10), "00:00")
+        XCTAssertEqual(TimeDisplay.countdown(-10), "0:00")
     }
 
     /// §4.2 통계 표기: 35분 → `00:35`, 3시간 5분 → `03:05`
