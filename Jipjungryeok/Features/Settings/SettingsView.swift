@@ -35,6 +35,7 @@ struct SettingsView: View {
                     )
                 }
 
+                themeRow
                 resetRow
                 versionRow
             }
@@ -64,6 +65,53 @@ struct SettingsView: View {
     }
 
     // MARK: - 줄
+
+    /// §10 색 테마.
+    ///
+    /// 라이트/다크는 여전히 시스템을 따른다. 여기서 고르는 것은 색 계열이지 밝기가 아니라
+    /// 항목을 "밝게/어둡게" 로 오해할 여지가 없다.
+    private var themeRow: some View {
+        card {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("색")
+                    .foregroundStyle(Palette.ink)
+
+                HStack(spacing: 10) {
+                    ForEach(PaletteTheme.allCases, id: \.self) { theme in
+                        themeChip(theme)
+                    }
+                }
+            }
+        }
+    }
+
+    private func themeChip(_ theme: PaletteTheme) -> some View {
+        let isSelected = settings.theme == theme
+
+        return Button {
+            settings.theme = theme
+        } label: {
+            Text(theme.displayName)
+                .font(Typography.statCaption)
+                // 선택된 칩만 배경으로 채운다. 색 이름을 그 테마의 색으로 칠하면
+                // 지금 적용된 테마 위에서 서로 안 어울려 오히려 못 읽는다.
+                .foregroundStyle(isSelected ? Palette.background : Palette.ink)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
+                        .fill(isSelected ? Palette.ink : Palette.background)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
+                        .stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
+                )
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("\(theme.displayName) 색")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
 
     /// §4.3 — 켤 때 권한을 요청한다.
     private var calendarRow: some View {

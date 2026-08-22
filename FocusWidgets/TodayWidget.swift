@@ -64,7 +64,12 @@ struct TodayWidgetView: View {
     let entry: TodayEntry
 
     var body: some View {
-        content
+        // §10 — 위젯 프로세스는 앱과 따로 뜬다. 앱이 넣어 준 `Palette.theme` 이
+        // 여기까지 오지 않으므로 그릴 때마다 저장된 값을 다시 넣는다.
+        // 안 하면 위젯만 기본 테마로 남아 홈 화면에서 색이 따로 논다.
+        ThemeStore.apply()
+
+        return content
             .containerBackground(Palette.background, for: .widget)
     }
 

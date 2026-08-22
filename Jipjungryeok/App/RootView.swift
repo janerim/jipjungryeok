@@ -27,6 +27,14 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        content
+            // §10 — `Palette` 는 static 접근이라 테마를 바꿔도 SwiftUI 가 무엇이
+            // 달라졌는지 모른다. 화면을 통째로 다시 만들어야 새 색이 적용된다.
+            // 테마 변경은 드문 일이라 이 비용은 문제가 되지 않는다.
+            .id(settings.theme)
+    }
+
+    private var content: some View {
         ZStack(alignment: .bottom) {
             Palette.background
                 .ignoresSafeArea()
