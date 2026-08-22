@@ -103,14 +103,7 @@ struct MemoSheet: View {
     private var buttons: some View {
         Button("저장") { onSubmit(memo) }
             .font(Typography.sheetTitle)
-            .foregroundStyle(Palette.background)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            .background(
-                RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
-                    .fill(Palette.ink)
-            )
-            .pressable(scale: 0.98)
+            .filledButton()
     }
 }
 

@@ -241,14 +241,7 @@ struct SettingsView: View {
                 Task { await calendar.requestFullAccess() }
             }
             .font(Typography.statCaption)
-            .foregroundStyle(Palette.background)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: Metrics.cardCornerRadius)
-                    .fill(Palette.ink)
-            )
-            .pressable()
+            .filledButton()
         }
     }
 
