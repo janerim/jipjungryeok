@@ -112,7 +112,13 @@ App Store Connect 에 그대로 붙여 넣는 텍스트다. 여기서 관리하�
 | 연령 등급 | 4+ |
 | 가격 | 무료 |
 | App Privacy | **데이터를 수집하지 않음** — 서버가 없고 분석 도구도 없다 |
-| 개인정보 처리방침 URL | `docs/privacy.md` 를 GitHub Pages 로 공개한 주소 |
+| 개인정보 처리방침 URL | `docs/privacy.md` → `https://janerim.github.io/jipjungryeok/privacy` |
+| 지원 URL (필수) | `docs/support.md` → `https://janerim.github.io/jipjungryeok/support` |
+| 마케팅 URL | 비워 둔다. 홍보용 랜딩 페이지가 없다 |
+| 버전 | `1.0` — 업로드한 빌드의 `MARKETING_VERSION` 과 같아야 한다 |
+| 저작권 | `2026 오정림` — © 기호는 Apple 이 붙이므로 넣지 않는다 |
+| 라우팅 앱 적용 범위 파일 | 비워 둔다. 지도·내비게이션 앱 전용이다 |
+| 앱 클립 | 쓰지 않는다 |
 
 ## 심사 메모
 
