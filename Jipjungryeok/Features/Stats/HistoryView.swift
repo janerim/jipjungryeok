@@ -78,7 +78,7 @@ struct HistoryView: View {
                         dayHeader(day)
 
                         ForEach(day.sessions) { session in
-                            sessionRow(session)
+                            SessionRow(session: session)
                         }
                     }
                 }
@@ -108,42 +108,6 @@ struct HistoryView: View {
             Rectangle()
                 .fill(Palette.stroke)
                 .frame(height: Metrics.cardStrokeWidth)
-        }
-    }
-
-    private func sessionRow(_ session: SessionRecord) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 14) {
-            // 시각을 고정폭 열로 세워야 하루치가 시간축처럼 읽힌다.
-            Text(TimeDisplay.clockTime(session.startAt))
-                .font(Typography.statCaption)
-                .foregroundStyle(Palette.inkSecondary)
-                .monospacedDigit()
-                .frame(width: 44, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(TimeDisplay.minutes(session.actualSeconds))분")
-                        .font(Typography.statValue)
-                        .foregroundStyle(Palette.ink)
-                        .monospacedDigit()
-
-                    // 계획을 못 채운 세션. 시각만 봐서는 드러나지 않는다 (§7 과 같은 표기).
-                    if !session.isCompleted {
-                        Text("중단")
-                            .font(Typography.statCaption)
-                            .foregroundStyle(Palette.inkSecondary)
-                    }
-                }
-
-                if let memo = session.memo, !memo.isEmpty {
-                    Text(memo)
-                        .font(Typography.statCaption)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            Spacer(minLength: 0)
         }
     }
 }

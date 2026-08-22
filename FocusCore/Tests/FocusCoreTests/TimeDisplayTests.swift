@@ -97,4 +97,26 @@ final class TimeDisplayTests: XCTestCase {
         XCTAssertEqual(TimeDisplay.yearMonth(date(2026, 8, 20, 14, 0), calendar: seoul), "2026년 8월")
         XCTAssertEqual(TimeDisplay.yearMonth(date(2026, 1, 1, 0, 0), calendar: seoul), "2026년 1월")
     }
+
+    // MARK: - 목록 날짜 라벨
+
+    func testRelativeDayNamesTodayAndYesterday() {
+        let now = date(2026, 8, 22, 14, 0)
+
+        XCTAssertEqual(TimeDisplay.relativeDay(date(2026, 8, 22, 9, 0), now: now, calendar: seoul), "오늘")
+        XCTAssertEqual(TimeDisplay.relativeDay(date(2026, 8, 21, 23, 0), now: now, calendar: seoul), "어제")
+        XCTAssertEqual(TimeDisplay.relativeDay(date(2026, 8, 20, 10, 0), now: now, calendar: seoul), "8월 20일")
+    }
+
+    /// 같은 날이면 시각이 달라도 "오늘" 이다. 자정 직후도 마찬가지다.
+    func testRelativeDayIgnoresTimeOfDay() {
+        let now = date(2026, 8, 22, 0, 0)
+        XCTAssertEqual(TimeDisplay.relativeDay(date(2026, 8, 22, 23, 0), now: now, calendar: seoul), "오늘")
+    }
+
+    /// 달을 넘어가도 어제는 어제다.
+    func testRelativeDayHandlesMonthBoundary() {
+        let now = date(2026, 9, 1, 10, 0)
+        XCTAssertEqual(TimeDisplay.relativeDay(date(2026, 8, 31, 22, 0), now: now, calendar: seoul), "어제")
+    }
 }

@@ -49,7 +49,7 @@ final class StatsCalculatorTests: XCTestCase {
 
     // MARK: - §12 35분 세션 1건
 
-    /// 35분 세션 하나를 오늘 끝내면 다섯 칸이 전부 00:35 여야 한다.
+    /// 35분 세션 하나를 오늘 끝내면 오늘·이번 주·이번 달이 전부 00:35 여야 한다.
     func testSingleSessionAppearsInEveryBucket() {
         let sessions = [record(startAt: date(2026, 8, 20, 10, 0), seconds: 35 * 60)]
         let summary = subject.summarize(sessions, now: now)
@@ -57,8 +57,7 @@ final class StatsCalculatorTests: XCTestCase {
         XCTAssertEqual(summary.todaySeconds, 2100)
         XCTAssertEqual(summary.weekSeconds, 2100)
         XCTAssertEqual(summary.monthSeconds, 2100)
-        XCTAssertEqual(summary.last7DaysSeconds, 2100)
-        XCTAssertEqual(summary.last28DaysSeconds, 2100)
+        XCTAssertEqual(summary.weekSessionCount, 1)
 
         XCTAssertEqual(TimeDisplay.hhmm(summary.todaySeconds), "00:35")
     }
@@ -75,14 +74,13 @@ final class StatsCalculatorTests: XCTestCase {
         XCTAssertEqual(summary.weekSeconds, 1500, "8/19 는 같은 주(8/17~8/23)")
         XCTAssertEqual(summary.monthSeconds, 1500)
 
-        // 차트에서도 어제 칸에만 들어간다
-        XCTAssertEqual(summary.dailyTotals[0].seconds, 0, "오늘 칸")
-        XCTAssertEqual(summary.dailyTotals[1].seconds, 1500, "어제 칸")
+        // 주간 스트립에서도 수요일(8/19) 칸에만 들어간다. 월요일이 0번이다.
+        XCTAssertEqual(summary.weekdayTotals[2].seconds, 1500, "수요일 칸")
+        XCTAssertEqual(summary.weekdayTotals[3].seconds, 0, "목요일(오늘) 칸")
     }
 
     // MARK: - §1-1 주는 월요일에 시작한다
 
-    /// 일요일 세션은 지난주다. 롤링 7일에는 들어가지만 "이번 주" 에는 안 들어간다.
     func testWeekStartsOnMonday() {
         let sessions = [
             record(startAt: date(2026, 8, 16, 10, 0), seconds: 1200),  // 일요일 = 지난주
@@ -91,36 +89,7 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize(sessions, now: now)
 
         XCTAssertEqual(summary.weekSeconds, 600, "일요일이 이번 주에 포함되면 안 된다")
-        XCTAssertEqual(summary.last7DaysSeconds, 1800, "롤링 7일(8/14~8/20)에는 둘 다 들어간다")
-    }
-
-    // MARK: - 롤링 윈도우 경계
-
-    /// 최근 7일은 오늘 포함이므로 8/14 까지다. 8/13 은 빠진다.
-    func testLast7DaysBoundary() {
-        let inside = subject.summarize(
-            [record(startAt: date(2026, 8, 14, 10, 0), seconds: 600)], now: now
-        )
-        XCTAssertEqual(inside.last7DaysSeconds, 600, "8/14 는 경계 안")
-
-        let outside = subject.summarize(
-            [record(startAt: date(2026, 8, 13, 10, 0), seconds: 600)], now: now
-        )
-        XCTAssertEqual(outside.last7DaysSeconds, 0, "8/13 은 경계 밖")
-        XCTAssertEqual(outside.last28DaysSeconds, 600, "다만 최근 28일에는 들어간다")
-    }
-
-    /// 최근 28일은 오늘 포함이므로 7/24 까지다. 7/23 은 빠진다.
-    func testLast28DaysBoundary() {
-        let inside = subject.summarize(
-            [record(startAt: date(2026, 7, 24, 10, 0), seconds: 600)], now: now
-        )
-        XCTAssertEqual(inside.last28DaysSeconds, 600, "7/24 는 경계 안")
-
-        let outside = subject.summarize(
-            [record(startAt: date(2026, 7, 23, 10, 0), seconds: 600)], now: now
-        )
-        XCTAssertEqual(outside.last28DaysSeconds, 0, "7/23 은 경계 밖")
+        XCTAssertEqual(summary.weekSessionCount, 1)
     }
 
     /// "이번 달" 은 롤링이 아니라 달력상 1일 기준이다.
@@ -129,34 +98,46 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize(sessions, now: now)
 
         XCTAssertEqual(summary.monthSeconds, 0, "7/31 은 지난달")
-        XCTAssertEqual(summary.last28DaysSeconds, 900, "최근 28일에는 들어간다")
     }
 
-    // MARK: - §12 차트
+    // MARK: - §4.2 주간 스트립
 
-    /// 차트는 10일치이고, 배열 맨 앞이 오늘이다 (화면에서 최신이 왼쪽).
-    func testChartHasTenDaysNewestFirst() {
-        let sessions = [
-            record(startAt: date(2026, 8, 20, 9, 0), seconds: 100),
-            record(startAt: date(2026, 8, 19, 9, 0), seconds: 200),
-            record(startAt: date(2026, 8, 11, 9, 0), seconds: 300)
-        ]
-        let summary = subject.summarize(sessions, now: now)
+    /// 7칸이고 **월요일이 맨 앞**이다. 화면에서 왼쪽이 월요일이 된다.
+    func testWeekdayTotalsStartOnMondayAndRunForward() {
+        let summary = subject.summarize([], now: now)
 
-        XCTAssertEqual(summary.dailyTotals.count, StatsCalculator.chartDayCount)
-        XCTAssertEqual(summary.dailyTotals[0].seconds, 100, "맨 앞이 오늘")
-        XCTAssertEqual(summary.dailyTotals[1].seconds, 200)
-        XCTAssertEqual(summary.dailyTotals[9].seconds, 300, "맨 뒤가 9일 전(8/11)")
+        XCTAssertEqual(summary.weekdayTotals.count, StatsCalculator.weekdayCount)
+        XCTAssertEqual(
+            summary.weekdayTotals[0].date,
+            calendar.startOfDay(for: date(2026, 8, 17)),
+            "8/17 월요일이 맨 앞"
+        )
+        XCTAssertEqual(
+            summary.weekdayTotals[6].date,
+            calendar.startOfDay(for: date(2026, 8, 23)),
+            "8/23 일요일이 맨 뒤"
+        )
 
-        XCTAssertEqual(summary.dailyTotals[0].date, calendar.startOfDay(for: now))
-        // 날짜가 하루씩 과거로 내려간다
-        for index in 1..<summary.dailyTotals.count {
-            XCTAssertLessThan(
-                summary.dailyTotals[index].date,
-                summary.dailyTotals[index - 1].date,
-                "\(index)번째 칸이 앞 칸보다 과거여야 한다"
+        // 날짜가 하루씩 미래로 올라간다 — 시간이 왼쪽에서 오른쪽으로 흐른다.
+        for index in 1..<summary.weekdayTotals.count {
+            XCTAssertGreaterThan(
+                summary.weekdayTotals[index].date,
+                summary.weekdayTotals[index - 1].date
             )
         }
+    }
+
+    /// 아직 오지 않은 요일도 0 으로 자리를 채운다. 주가 진행되며 칸 수가
+    /// 달라지면 한 주의 모양을 비교할 수 없다.
+    func testFutureWeekdaysKeepTheirSlotsAtZero() {
+        let sessions = [record(startAt: date(2026, 8, 17, 10, 0), seconds: 600)]
+        let summary = subject.summarize(sessions, now: now)
+
+        XCTAssertEqual(summary.weekdayTotals.count, 7)
+        XCTAssertEqual(summary.weekdayTotals[0].seconds, 600, "월요일")
+        // 오늘은 목요일(index 3). 금·토·일은 아직 오지 않았다.
+        XCTAssertEqual(summary.weekdayTotals[4].seconds, 0)
+        XCTAssertEqual(summary.weekdayTotals[6].seconds, 0)
     }
 
     /// 같은 날 여러 세션은 한 칸에 합쳐진다.
@@ -168,44 +149,53 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize(sessions, now: now)
 
         XCTAssertEqual(summary.todaySeconds, 1500)
-        XCTAssertEqual(summary.dailyTotals[0].seconds, 1500)
-        XCTAssertEqual(summary.monthSessionCount, 2)
+        XCTAssertEqual(summary.weekdayTotals[3].seconds, 1500, "목요일 칸")
+        XCTAssertEqual(summary.weekSessionCount, 2)
     }
 
-    // MARK: - Y축 확장 (§4.2)
+    // MARK: - §4.2 링 기준값
 
-    func testChartMaxHoursDefaultsToEight() {
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 0), 8)
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 3600), 8)
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 8 * 3600), 8, "정확히 8시간은 확장 없음")
+    /// 목표 설정 기능이 없으므로 링 분모는 고정값이다. 값이 흔들리면
+    /// 어제와 오늘의 링을 눈으로 비교할 수 없다.
+    func testFullRingIsAFixedFiveHours() {
+        XCTAssertEqual(StatsSummary.fullRingSeconds, 5 * 3600)
     }
 
-    func testChartMaxHoursExpandsInTwoHourSteps() {
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 8 * 3600 + 60), 10)
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 9 * 3600), 10)
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 10 * 3600), 10)
-        XCTAssertEqual(StatsCalculator.chartMaxHours(forMaxSeconds: 11 * 3600), 12)
+    func testFillFractionRunsFromZeroToOne() {
+        XCTAssertEqual(StatsSummary.fillFraction(forSeconds: 0), 0)
+        XCTAssertEqual(StatsSummary.fillFraction(forSeconds: -60), 0, "음수도 0")
+        XCTAssertEqual(StatsSummary.fillFraction(forSeconds: 150 * 60), 0.5, accuracy: 0.001)
+        XCTAssertEqual(StatsSummary.fillFraction(forSeconds: 5 * 3600), 1)
+        XCTAssertEqual(StatsSummary.fillFraction(forSeconds: 9 * 3600), 1, "첫 바퀴는 넘지 않는다")
     }
 
-    func testSummaryCarriesExpandedChartMax() {
-        let sessions = [record(startAt: date(2026, 8, 20, 1, 0), seconds: 9 * 3600)]
-        XCTAssertEqual(subject.summarize(sessions, now: now).chartMaxHours, 10)
+    /// 기준 이하에서는 두 번째 바퀴가 없어야 한다. 있으면 평범한 날에도
+    /// 안쪽 호가 그려져 무슨 뜻인지 알 수 없다.
+    func testOverflowIsZeroUpToTheReference() {
+        XCTAssertEqual(StatsSummary.overflowFraction(forSeconds: 0), 0)
+        XCTAssertEqual(StatsSummary.overflowFraction(forSeconds: 3 * 3600), 0)
+        XCTAssertEqual(StatsSummary.overflowFraction(forSeconds: 5 * 3600), 0, "정확히 기준이면 초과 없음")
+    }
+
+    /// 5시간·7시간·10시간이 서로 다르게 보여야 한다 — 이 함수가 없으면 전부 같아진다.
+    func testOverflowGrowsPastTheReferenceAndCapsAtOne() {
+        XCTAssertEqual(StatsSummary.overflowFraction(forSeconds: 7 * 3600), 0.4, accuracy: 0.001)
+        XCTAssertEqual(StatsSummary.overflowFraction(forSeconds: 10 * 3600), 1)
+        XCTAssertEqual(StatsSummary.overflowFraction(forSeconds: 14 * 3600), 1, "두 바퀴에서 멈춘다")
     }
 
     // MARK: - §12 빈 상태
 
-    /// 세션이 0건이어도 차트 칸은 10개가 그려지고 값은 전부 0이다.
     func testEmptyInputProducesZeroedSummary() {
         let summary = subject.summarize([], now: now)
 
         XCTAssertEqual(summary.todaySeconds, 0)
         XCTAssertEqual(summary.weekSeconds, 0)
         XCTAssertEqual(summary.monthSeconds, 0)
-        XCTAssertEqual(summary.last7DaysSeconds, 0)
-        XCTAssertEqual(summary.last28DaysSeconds, 0)
-        XCTAssertEqual(summary.monthSessionCount, 0)
-        XCTAssertEqual(summary.chartMaxHours, 8)
-        XCTAssertEqual(summary.dailyTotals.count, StatsCalculator.chartDayCount)
+        XCTAssertEqual(summary.weekSessionCount, 0)
+        XCTAssertEqual(summary.weekdayTotals.count, StatsCalculator.weekdayCount)
+        XCTAssertTrue(summary.weekdayTotals.allSatisfy { $0.seconds == 0 })
+        XCTAssertEqual(summary.dailyTotals.count, StatsCalculator.dailySeriesDayCount)
         XCTAssertTrue(summary.dailyTotals.allSatisfy { $0.seconds == 0 })
     }
 
@@ -217,7 +207,7 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize(sessions, now: now)
 
         XCTAssertEqual(summary.todaySeconds, 300)
-        XCTAssertEqual(summary.monthSessionCount, 1)
+        XCTAssertEqual(summary.weekSessionCount, 1)
     }
 
     // MARK: - 미래 세션 방어
@@ -230,26 +220,28 @@ final class StatsCalculatorTests: XCTestCase {
         XCTAssertEqual(summary.todaySeconds, 0)
         XCTAssertEqual(summary.weekSeconds, 0)
         XCTAssertEqual(summary.monthSeconds, 0)
-        XCTAssertEqual(summary.monthSessionCount, 0)
+        XCTAssertEqual(summary.weekSessionCount, 0)
     }
 
     // MARK: - 조회 윈도우
 
-    /// 저장소에서 꺼내올 범위는 "이번 달 1일" 과 "27일 전" 중 이른 쪽이다.
-    func testWindowStartTakesTheEarlierOfMonthStartAndRolling() {
-        // 8/20 → 8/1 vs 7/24 → 7/24 가 이르다
-        XCTAssertEqual(subject.windowStart(for: now), calendar.startOfDay(for: date(2026, 7, 24)))
+    /// 저장소에서 꺼내올 범위는 이번 달 1일 / 9일 전 / 이번 주 월요일 중 가장 이른 쪽이다.
+    func testWindowStartTakesTheEarliestBoundary() {
+        // 8/20 → 8/1 vs 8/11 vs 8/17 → 8/1 이 이르다
+        XCTAssertEqual(subject.windowStart(for: now), calendar.startOfDay(for: date(2026, 8, 1)))
 
-        // 8/5 → 8/1 vs 7/9 → 7/9 가 이르다
+        // 8/5 → 8/1 vs 7/27 vs 8/3 → 7/27 이 이르다
         XCTAssertEqual(
             subject.windowStart(for: date(2026, 8, 5)),
-            calendar.startOfDay(for: date(2026, 7, 9))
+            calendar.startOfDay(for: date(2026, 7, 27))
         )
 
-        // 1/30 → 1/1 vs 1/3 → 1/1 이 이르다
+        // 월 초에 주가 지난달에 걸치는 경우 그 월요일까지 내려가야 한다.
+        // 2026-03-01 은 일요일이므로 이번 주 월요일은 2/23 이다.
         XCTAssertEqual(
-            subject.windowStart(for: date(2026, 1, 30)),
-            calendar.startOfDay(for: date(2026, 1, 1))
+            subject.windowStart(for: date(2026, 3, 1)),
+            calendar.startOfDay(for: date(2026, 2, 20)),
+            "9일 전(2/20)이 주 시작(2/23)보다 이르다"
         )
     }
 

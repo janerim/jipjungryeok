@@ -57,6 +57,26 @@ public enum TimeDisplay {
     }
 
     /// §4.2 차트 축 아래 라벨. `2026년 8월`
+    /// 목록의 날짜 구분 라벨. 오늘·어제는 이름으로, 그 이전은 `M월 d일`.
+    ///
+    /// 날짜 없이 시각만 늘어놓으면 14:05 다음에 16:22 가 오는 것처럼 보여
+    /// 순서가 틀린 줄 안다. 그렇다고 매 줄에 날짜를 박으면 대부분이 오늘이라 잡음이 된다.
+    public static func relativeDay(
+        _ date: Date,
+        now: Date = .now,
+        calendar: Calendar = .focus
+    ) -> String {
+        let target = calendar.startOfDay(for: date)
+        let today = calendar.startOfDay(for: now)
+
+        if target == today { return "오늘" }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+           target == yesterday {
+            return "어제"
+        }
+        return monthDay(date, calendar: calendar)
+    }
+
     public static func yearMonth(_ date: Date, calendar: Calendar = .focus) -> String {
         let parts = calendar.dateComponents([.year, .month], from: date)
         return "\(parts.year ?? 0)년 \(parts.month ?? 0)월"

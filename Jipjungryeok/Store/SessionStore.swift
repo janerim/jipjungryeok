@@ -14,7 +14,8 @@ import FocusCore
 final class SessionStore {
 
     /// §4.2 회고 칸 수
-    static let retrospectLimit = 3
+    /// §4.2-3 통계 화면에 바로 보이는 최근 세션 수. 그 너머는 기록 시트로 간다.
+    static let recentLimit = 5
 
     private(set) var summary: StatsSummary
     /// 최근 완료 세션. 회고 섹션이 쓴다.
@@ -102,7 +103,7 @@ final class SessionStore {
     /// 마지막 경우가 중요하다 — 자정을 넘겨 돌아오면 "오늘" 이 달라져 있다.
     func reload(now: Date = .now) {
         summary = calculator.summarize(fetchSessionsInWindow(now: now), now: now)
-        recent = fetchRecentCompleted()
+        recent = fetchRecent()
     }
 
     /// 집계에 필요한 범위만 꺼내온다. 전체를 다 읽을 이유가 없다.
@@ -127,14 +128,18 @@ final class SessionStore {
         return ((try? context.fetch(descriptor)) ?? []).map(\.record)
     }
 
-    /// §4.2 회고는 "최근 **완료** 세션" 이므로 중도 중지한 세션은 빼고 보여준다.
-    /// 통계 합계에는 들어가지만 회고 카드에는 안 나온다.
-    private func fetchRecentCompleted() -> [SessionRecord] {
+    /// §4.2-3 최근 세션. 중도 중지한 것도 포함한다.
+    ///
+    /// 예전 회고 카드는 완료된 것만 골랐지만, 지금은 이 목록이 기록 시트의 앞부분
+    /// 역할을 한다. 두 곳의 기준이 다르면 "전체" 를 눌렀을 때 없던 항목이 튀어나온다.
+    ///
+    /// 정렬은 `startAt` 기준이다 — 날짜 판정 규칙(§4.2)과 같은 축을 써야
+    /// 기록 시트의 순서와 어긋나지 않는다.
+    private func fetchRecent() -> [SessionRecord] {
         var descriptor = FetchDescriptor<FocusSession>(
-            predicate: #Predicate<FocusSession> { $0.isCompleted },
-            sortBy: [SortDescriptor(\.endAt, order: .reverse)]
+            sortBy: [SortDescriptor(\.startAt, order: .reverse)]
         )
-        descriptor.fetchLimit = Self.retrospectLimit
+        descriptor.fetchLimit = Self.recentLimit
         return ((try? context.fetch(descriptor)) ?? []).map(\.record)
     }
 
