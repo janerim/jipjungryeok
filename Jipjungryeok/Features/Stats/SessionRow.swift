@@ -21,7 +21,9 @@ struct SessionRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("\(TimeDisplay.minutes(session.actualSeconds))분")
-                        .font(Typography.statValue)
+                        // 목록에서 이 숫자가 크면 메모보다 시간이 주인공처럼 보인다.
+                        // 기록 화면의 목적은 "그때 뭘 했더라" 이지 "몇 분 했나" 가 아니다.
+                        .font(Typography.sheetTitle)
                         .foregroundStyle(Palette.ink)
                         .monospacedDigit()
 

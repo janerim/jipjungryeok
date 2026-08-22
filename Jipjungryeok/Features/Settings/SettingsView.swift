@@ -107,48 +107,43 @@ struct SettingsView: View {
     /// 5분 단위다. 여기서 1분 단위로 맞출 일이 없다 — 그날의 미세 조정은 다이얼이 한다.
     private var defaultMinutesRow: some View {
         card {
-            HStack(spacing: 0) {
+            HStack(spacing: 12) {
                 Text("기본 시간")
                     .foregroundStyle(Palette.ink)
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 0)
 
-                stepperButton("minus", enabled: settings.defaultMinutes > AppSettings.minutesStep) {
-                    changeDefaultMinutes(by: -AppSettings.minutesStep)
+                // 5분 단위 스크롤. +/− 버튼은 25분에서 90분까지 열세 번을 눌러야 해서
+                // 값을 크게 옮길 때 손이 많이 갔다.
+                Picker("기본 시간", selection: defaultMinutesBinding) {
+                    ForEach(Self.minuteOptions, id: \.self) { minutes in
+                        Text("\(minutes)분")
+                            .foregroundStyle(Palette.ink)
+                            .tag(minutes)
+                    }
                 }
-
-                Text("\(settings.defaultMinutes)분")
-                    .foregroundStyle(Palette.ink)
-                    .monospacedDigit()
-                    .frame(minWidth: 62)
-
-                stepperButton("plus", enabled: settings.defaultMinutes < TimerEngine.maximumMinutes) {
-                    changeDefaultMinutes(by: AppSettings.minutesStep)
-                }
+                .labelsHidden()
+                .pickerStyle(.wheel)
+                .frame(width: 116, height: 96)
+                .clipped()
             }
         }
     }
 
-    private func stepperButton(
-        _ symbol: String,
-        enabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(enabled ? Palette.ink : Palette.stroke)
-                .frame(width: 40, height: 36)
-                .contentShape(Rectangle())
-        }
-        .disabled(!enabled)
-    }
+    private static let minuteOptions: [Int] = Array(
+        stride(from: AppSettings.minutesStep, through: TimerEngine.maximumMinutes, by: AppSettings.minutesStep)
+    )
 
-    private func changeDefaultMinutes(by delta: Int) {
-        settings.setDefaultMinutes(settings.defaultMinutes + delta)
-        // 쉬고 있는 다이얼은 즉시 새 값으로 옮겨 준다. 설정하고 돌아갔더니
-        // 그대로면 적용이 안 된 줄 안다.
-        timerModel.applyDefaultMinutes(settings.defaultMinutes)
+    private var defaultMinutesBinding: Binding<Int> {
+        Binding(
+            get: { settings.defaultMinutes },
+            set: { minutes in
+                settings.setDefaultMinutes(minutes)
+                // 쉬고 있는 다이얼은 즉시 새 값으로 옮겨 준다. 설정하고 돌아갔더니
+                // 그대로면 적용이 안 된 줄 안다.
+                timerModel.applyDefaultMinutes(settings.defaultMinutes)
+            }
+        )
     }
 
     /// §7 어느 캘린더에 남길지.
@@ -242,7 +237,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("캘린더 기록")
                         .foregroundStyle(Palette.ink)
-                    Text("완료한 세션을 '집중' 캘린더에 남깁니다")
+                    Text("완료한 세션을 캘린더에 남깁니다")
                         .font(Typography.statCaption)
                         .foregroundStyle(Palette.inkSecondary)
                 }
@@ -323,7 +318,9 @@ struct SettingsView: View {
 
     private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .font(Typography.statValue)
+            // 시트 제목과 같은 크기. 설정은 훑어보는 화면이라 항목 글자가 크면
+            // 한 화면에 안 들어오고, 무엇보다 목록이 무거워 보인다.
+            .font(Typography.sheetTitle)
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
