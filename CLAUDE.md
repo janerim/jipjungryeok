@@ -50,6 +50,10 @@ xcodebuild build -scheme Jipjungryeok \
 
 `brew install xcodegen` 이 선행돼야 한다.
 
+실기기에 올리려면 `./scripts/setup-device-signing.sh` 를 한 번 돌린다. Xcode 에
+Apple ID 가 로그인돼 있어야 하고, App Group 때문에 **유료 개발자 계정**이어야 한다
+(§13-1). 절차와 실기기에서만 확인되는 항목은 [docs/mac-first-build.md](docs/mac-first-build.md) 3.5단계.
+
 `xcodebuild test` 는 **쓰지 않기로 했다.** 자동 테스트는 `swift test` 하나로 간다.
 `FocusCoreTests` 는 로컬 패키지 안에 있어서 XcodeGen 이 스킴에 넣지 못하고(넣으면
 generate 가 validation 에러로 죽는다), 스킴에 걸 앱 타겟 테스트 번들은 만들지 않는다.
