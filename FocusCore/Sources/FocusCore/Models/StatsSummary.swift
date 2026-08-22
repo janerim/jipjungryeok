@@ -89,13 +89,14 @@ public struct StatsSummary: Equatable, Sendable {
         StatsCalculator(calendar: calendar).summarize([], now: now)
     }
 
-    /// §5 위젯용 스냅샷. App Group 에 쓰는 것은 M5 의 몫이다.
+    /// §5 위젯용 스냅샷. 화면과 같은 값을 담는다 — 위젯이 앱과 다른 숫자를
+    /// 보여주면 어느 쪽이 맞는지 알 수 없다.
     public func snapshot(updatedAt: Date) -> StatsSnapshot {
         StatsSnapshot(
             todaySeconds: todaySeconds,
             weekSeconds: weekSeconds,
-            monthSeconds: monthSeconds,
-            last7Days: dailyTotals.prefix(7).map(\.seconds),
+            weekSessionCount: weekSessionCount,
+            weekdaySeconds: weekdayTotals.map(\.seconds),
             updatedAt: updatedAt
         )
     }

@@ -1,7 +1,10 @@
 import SwiftUI
 import FocusCore
 
-/// §4.2-1 오늘 집중 시간 링.
+/// §4.2-1 오늘 집중 시간 링. 통계 화면과 홈 위젯(§8.1)이 함께 쓴다.
+///
+/// 두 곳이 같은 그림이어야 위젯을 보고 앱을 열었을 때 같은 것을 보고 있다고 느낀다.
+/// 그래서 `Shared/` 에 두고 앱·위젯 양쪽에 컴파일한다.
 ///
 /// 다이얼과 같은 시각 언어를 쓴다. 12시에서 시작해 시계방향으로 차오르고, 채워진
 /// 양이 곧 시간이다. 통계 화면에 들어왔을 때 "다른 앱" 처럼 보이지 않아야 한다.
@@ -17,12 +20,15 @@ struct TodayRing: View {
 
     let seconds: Int
 
+    /// 위젯은 좁아서 더 작게 그린다. 비율은 그대로 유지된다.
+    var diameter: CGFloat = 168
+    var showsLabel: Bool = true
+
+    private var lineWidth: CGFloat { diameter * 0.083 }
+    private var overflowLineWidth: CGFloat { diameter * 0.030 }
+
     private var fraction: Double { StatsSummary.fillFraction(forSeconds: seconds) }
     private var overflow: Double { StatsSummary.overflowFraction(forSeconds: seconds) }
-
-    private let diameter: CGFloat = 168
-    private let lineWidth: CGFloat = 14
-    private let overflowLineWidth: CGFloat = 5
 
     /// 두 번째 호를 바깥 링 안쪽으로 들여놓는 양. 두 획이 닿으면 한 덩어리로 보인다.
     private var overflowInset: CGFloat { lineWidth / 2 + 4 + overflowLineWidth / 2 }
@@ -56,9 +62,11 @@ struct TodayRing: View {
             }
 
             VStack(spacing: 2) {
-                Text("오늘")
-                    .font(Typography.statCaption)
-                    .foregroundStyle(Palette.inkSecondary)
+                if showsLabel {
+                    Text("오늘")
+                        .font(Typography.statCaption)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
 
                 Text(TimeDisplay.hhmm(seconds))
                     .font(Typography.statusLabel)

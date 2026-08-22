@@ -1,7 +1,7 @@
 import SwiftUI
 import FocusCore
 
-/// §4.2-2 이번 주 7칸.
+/// §4.2-2 이번 주 7칸. 통계 화면과 홈 위젯(§8.1)이 함께 쓴다.
 ///
 /// 총합보다 "며칠 나왔나" 가 행동을 바꾼다. 그래서 막대 높이보다 **빈 칸이 보이는 것**이
 /// 이 그림의 목적이다.
@@ -15,7 +15,10 @@ struct WeekStrip: View {
     /// `weekdayTotals` 는 월요일이 0번임이 집계에서 보장된다(테스트로 못박음).
     private static let labels = ["월", "화", "수", "목", "금", "토", "일"]
 
-    private let barHeight: CGFloat = 76
+    /// 위젯은 세로가 좁아서 낮게 그린다.
+    var barHeight: CGFloat = 76
+    var showsLabels: Bool = true
+
     private let calendar = Calendar.focus
 
     var body: some View {
@@ -42,9 +45,11 @@ struct WeekStrip: View {
             }
             .frame(height: barHeight, alignment: .bottom)
 
-            Text(Self.labels[min(index, Self.labels.count - 1)])
-                .font(Typography.statCaption)
-                .foregroundStyle(isToday ? Palette.ink : Palette.inkSecondary)
+            if showsLabels {
+                Text(Self.labels[min(index, Self.labels.count - 1)])
+                    .font(Typography.statCaption)
+                    .foregroundStyle(isToday ? Palette.ink : Palette.inkSecondary)
+            }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)

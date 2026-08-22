@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import WidgetKit
 import FocusCore
 
 /// 세션 저장과 통계 조회.
@@ -13,7 +14,6 @@ import FocusCore
 @Observable
 final class SessionStore {
 
-    /// §4.2 회고 칸 수
     /// §4.2-3 통계 화면에 바로 보이는 최근 세션 수. 그 너머는 기록 시트로 간다.
     static let recentLimit = 5
 
@@ -104,6 +104,19 @@ final class SessionStore {
     func reload(now: Date = .now) {
         summary = calculator.summarize(fetchSessionsInWindow(now: now), now: now)
         recent = fetchRecent()
+        publishSnapshot(now: now)
+    }
+
+    /// §8.1 위젯은 SwiftData 를 열지 않고 이 스냅샷만 읽는다.
+    ///
+    /// `reload()` 에 붙여 둔 이유는, 통계가 갱신되는 모든 경로가 결국 여기를
+    /// 지나기 때문이다. 세션 저장·삭제·자정 넘김·포그라운드 복귀에 각각
+    /// 갱신 코드를 흩어 두면 그중 하나를 빠뜨렸을 때 위젯만 조용히 옛 값을 남긴다.
+    private func publishSnapshot(now: Date) {
+        SnapshotStore.save(summary.snapshot(updatedAt: now))
+        // 타임라인 정책이 `.after(자정)` 이라 이 호출이 없으면 세션이 끝나도
+        // 다음 자정까지 위젯이 그대로다 (§8.1).
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// 집계에 필요한 범위만 꺼내온다. 전체를 다 읽을 이유가 없다.

@@ -247,19 +247,32 @@ final class StatsCalculatorTests: XCTestCase {
 
     // MARK: - 위젯 스냅샷 (§5)
 
-    func testSnapshotTakesTheFirstSevenChartDays() {
+    /// 스냅샷은 화면과 **같은 값·같은 순서**여야 한다. 위젯이 앱과 다른 숫자를
+    /// 보여주면 어느 쪽이 맞는지 알 수 없다.
+    func testSnapshotMirrorsTheScreen() {
         let sessions = [
-            record(startAt: date(2026, 8, 20, 9, 0), seconds: 100),
-            record(startAt: date(2026, 8, 19, 9, 0), seconds: 200),
-            record(startAt: date(2026, 8, 11, 9, 0), seconds: 300)   // 7일 밖
+            record(startAt: date(2026, 8, 20, 9, 0), seconds: 100),  // 목
+            record(startAt: date(2026, 8, 17, 9, 0), seconds: 200),  // 월
+            record(startAt: date(2026, 8, 11, 9, 0), seconds: 300)   // 지난주
         ]
-        let snapshot = subject.summarize(sessions, now: now).snapshot(updatedAt: now)
+        let summary = subject.summarize(sessions, now: now)
+        let snapshot = summary.snapshot(updatedAt: now)
 
-        XCTAssertEqual(snapshot.last7Days.count, 7)
-        XCTAssertEqual(snapshot.last7Days[0], 100, "맨 앞이 오늘")
-        XCTAssertEqual(snapshot.last7Days[1], 200)
-        XCTAssertEqual(snapshot.todaySeconds, 100)
+        XCTAssertEqual(snapshot.weekdaySeconds.count, StatsCalculator.weekdayCount)
+        XCTAssertEqual(snapshot.weekdaySeconds[0], 200, "맨 앞이 월요일")
+        XCTAssertEqual(snapshot.weekdaySeconds[3], 100, "목요일")
+        XCTAssertEqual(snapshot.weekdaySeconds, summary.weekdayTotals.map(\.seconds))
+        XCTAssertEqual(snapshot.todaySeconds, summary.todaySeconds)
+        XCTAssertEqual(snapshot.weekSeconds, summary.weekSeconds)
+        XCTAssertEqual(snapshot.weekSessionCount, summary.weekSessionCount)
         XCTAssertEqual(snapshot.updatedAt, now)
+    }
+
+    /// 빈 스냅샷도 7칸을 들고 있어야 한다. 빈 배열이면 위젯이 막대를 하나도
+    /// 못 그려서 고장난 것처럼 보인다.
+    func testZeroSnapshotKeepsSevenSlots() {
+        XCTAssertEqual(StatsSnapshot.zero.weekdaySeconds.count, StatsCalculator.weekdayCount)
+        XCTAssertTrue(StatsSnapshot.zero.weekdaySeconds.allSatisfy { $0 == 0 })
     }
 
     func testSnapshotRoundTripsThroughCodable() throws {
