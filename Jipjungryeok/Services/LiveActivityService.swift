@@ -22,12 +22,12 @@ final class LiveActivityService {
 
     // MARK: -
 
+    /// - Important: 정리와 생성의 **순서**가 중요하다. 남은 Activity 를 끝내는 것은
+    ///   비동기인데, 정리를 `Task` 에 던져 놓고 곧바로 동기적으로 `request` 하면
+    ///   정리 Task 가 나중에 돌면서 **방금 만든 것까지 끝내 버린다.** 만들어지자마자
+    ///   사라져서 화면에는 아무것도 안 남는다. 그래서 한 Task 안에서 순서대로 한다.
     func start(plannedMinutes: Int, startDate: Date, endDate: Date) {
         guard isAvailable else { return }
-
-        // 앱이 강제 종료됐다 살아나면 지난 세션의 Activity 가 떠 있을 수 있다.
-        // 새로 만들기 전에 남은 것을 정리하지 않으면 잠금화면에 두 개가 겹친다.
-        endAll()
 
         let state = FocusActivityAttributes.ContentState(
             endDate: endDate,
@@ -35,11 +35,17 @@ final class LiveActivityService {
             pausedRemainingSeconds: nil
         )
 
-        activity = try? Activity.request(
-            attributes: FocusActivityAttributes(plannedMinutes: plannedMinutes),
-            content: ActivityContent(state: state, staleDate: endDate),
-            pushType: nil
-        )
+        Task {
+            // 앱이 강제 종료됐다 살아나면 지난 세션의 것이 떠 있을 수 있다.
+            // 이걸 먼저 끝내지 않으면 잠금화면에 두 개가 겹친다.
+            await endOrphans()
+
+            activity = try? Activity.request(
+                attributes: FocusActivityAttributes(plannedMinutes: plannedMinutes),
+                content: ActivityContent(state: state, staleDate: endDate),
+                pushType: nil
+            )
+        }
     }
 
     /// 일시정지·재개로 종료 시각이 바뀌었을 때.
@@ -70,11 +76,6 @@ final class LiveActivityService {
     }
 
     // MARK: -
-
-    private func endAll() {
-        activity = nil
-        Task { await endOrphans() }
-    }
 
     private func endOrphans() async {
         for activity in Activity<FocusActivityAttributes>.activities {
