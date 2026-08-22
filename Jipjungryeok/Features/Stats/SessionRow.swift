@@ -45,5 +45,18 @@ struct SessionRow: View {
 
             Spacer(minLength: 0)
         }
+        // 시각·분·중단·메모가 따로 읽히면 한 줄이 네 번에 나뉜다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [
+            TimeDisplay.clockTime(session.startAt),
+            "\(TimeDisplay.minutes(session.actualSeconds))분"
+        ]
+        if !session.isCompleted { parts.append("중단") }
+        if let memo = session.memo, !memo.isEmpty { parts.append(memo) }
+        return parts.joined(separator: ", ")
     }
 }

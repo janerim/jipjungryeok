@@ -58,6 +58,23 @@ final class TimerViewModel {
 
     var dialFraction: Double { engine.dialFraction(at: now) }
 
+    /// VoiceOver 가 읽는 현재 상태. 화면의 숫자만으로는 idle 인지 paused 인지 알 수 없다.
+    var accessibilityStatus: String {
+        switch engine.phase {
+        case .idle:    "집중 \(engine.plannedMinutes)분, 대기 중"
+        case .running: "남은 시간 \(TimeDisplay.countdown(remainingSeconds)), 진행 중"
+        case .paused:  "남은 시간 \(TimeDisplay.countdown(remainingSeconds)), 일시정지"
+        }
+    }
+
+    var accessibilityActionHint: String {
+        switch engine.phase {
+        case .idle:    "두 번 탭하여 시작"
+        case .running: "두 번 탭하여 일시정지"
+        case .paused:  "두 번 탭하여 계속"
+        }
+    }
+
     /// 숫자 아래 한 줄. 돌아가는 중에는 비운다 — 그때는 숫자가 스스로 상태를 말한다.
     var primaryHint: String {
         switch engine.phase {

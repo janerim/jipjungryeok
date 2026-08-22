@@ -170,6 +170,26 @@ struct SettingsView: View {
         .frame(height: 40)
         .onAppear { scrolledMinutes = settings.defaultMinutes }
         .onChange(of: scrolledMinutes) { _, new in applyScrolledMinutes(new) }
+        // 가로 스크롤은 VoiceOver 로 값을 고를 수 없다. 다이얼과 같은 이유로
+        // 조정 동작을 따로 준다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("기본 시간")
+        .accessibilityValue("\(settings.defaultMinutes)분")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: stepDefaultMinutes(by: AppSettings.minutesStep)
+            case .decrement: stepDefaultMinutes(by: -AppSettings.minutesStep)
+            @unknown default: break
+            }
+        }
+    }
+
+    private func stepDefaultMinutes(by delta: Int) {
+        let next = AppSettings.clampedMinutes(settings.defaultMinutes + delta)
+        guard next != settings.defaultMinutes else { return }
+        applyScrolledMinutes(next)
+        // 스크롤 위치도 함께 옮겨야 화면과 낭독 값이 어긋나지 않는다.
+        scrolledMinutes = next
     }
 
     /// 스크롤이 멈춘 위치가 곧 선택값이다.

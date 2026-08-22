@@ -82,6 +82,32 @@ struct DialView: View {
         .onLongPressGesture(minimumDuration: 0.6) {
             if allowsLongPress { onLongPress() }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("집중 시간")
+        .accessibilityValue("\(currentMinutes)분")
+        // 원형 드래그는 VoiceOver 로 흉내낼 수 없다. 조정 동작을 따로 주지 않으면
+        // 화면 낭독 사용자는 시간을 아예 바꿀 수 없다.
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: changeMinutes(by: 1)
+            case .decrement: changeMinutes(by: -1)
+            @unknown default: break
+            }
+        }
+        .accessibilityHint("위아래로 쓸어넘겨 1분씩 조정합니다")
+    }
+
+    /// 부채꼴 비율에서 되짚은 현재 분. 화면에 그려진 것과 같은 값이어야 한다.
+    private var currentMinutes: Int {
+        Int((fraction * fullTurnMinutes).rounded())
+    }
+
+    private func changeMinutes(by delta: Int) {
+        let next = min(TimerEngine.maximumMinutes, max(1, currentMinutes + delta))
+        guard next != currentMinutes else { return }
+        onMinutesChanged(next)
+        // 드래그와 같은 경로로 마무리해야 진행 상태 저장까지 이어진다.
+        onDragEnded()
     }
 
     // MARK: - 그리기

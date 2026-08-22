@@ -54,6 +54,12 @@ struct TimerView: View {
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
                 .onTapGesture { model.primaryTapped() }
+                // 숫자가 곧 버튼이라는 것이 화면에서는 힌트 한 줄로 전해지지만,
+                // 낭독으로는 트레잇을 주지 않으면 그냥 글자로 읽힌다.
+                .accessibilityElement(children: .ignore)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel(model.accessibilityStatus)
+                .accessibilityHint(model.accessibilityActionHint)
 
                 // 남는 공간은 전부 숫자 아래로 보낸다. 최소값은 하단 페이지
                 // 인디케이터와 겹치지 않을 만큼.
