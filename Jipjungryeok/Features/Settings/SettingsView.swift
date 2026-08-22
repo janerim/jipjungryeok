@@ -4,14 +4,16 @@ import FocusCore
 
 /// §4.3 설정 화면 — 타이머에서 오른쪽으로 스와이프.
 ///
-/// 리스트 4줄이 전부다. 여기에 항목을 늘리고 싶어지면 §2·§3 의 "설정을 만들지 않는다"
-/// 원칙과 제외 목록을 먼저 볼 것.
+/// 여기에 항목을 늘리고 싶어지면 §2·§3 의 "설정을 만들지 않는다" 원칙과 제외 목록을
+/// 먼저 볼 것. 지금 있는 것들은 각각 근거가 있다 — 권한을 사용자가 켜야 하거나(캘린더),
+/// 매번 같은 값으로 시작하는 사람이 많거나(기본 시간), 색이 곧 앱의 인상이거나(테마).
 struct SettingsView: View {
 
     let recorder: SessionRecorder
     let settings: AppSettings
     let calendar: CalendarService
     let notifications: NotificationService
+    let timerModel: TimerViewModel
 
     @State private var isRequestingCalendarAccess = false
     @State private var showsFirstResetConfirm = false
@@ -35,6 +37,11 @@ struct SettingsView: View {
                     )
                 }
 
+                defaultMinutesRow
+                memoPromptRow
+                if calendar.canWrite && settings.isCalendarEnabled {
+                    calendarPickerRow
+                }
                 themeRow
                 resetRow
                 versionRow
@@ -65,6 +72,121 @@ struct SettingsView: View {
     }
 
     // MARK: - 줄
+
+    /// §6-6 — 이 앱에서 유일하게 사용자를 멈춰 세우는 화면이라 끌 수 있어야 한다.
+    private var memoPromptRow: some View {
+        card {
+            Toggle(isOn: memoPromptBinding) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("회고 남기기")
+                        .foregroundStyle(Palette.ink)
+                    Text("세션이 끝나면 메모를 묻습니다")
+                        .font(Typography.statCaption)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            .tint(Palette.accent)
+        }
+    }
+
+    private var memoPromptBinding: Binding<Bool> {
+        Binding(
+            get: { settings.isMemoPromptEnabled },
+            set: { isOn in
+                settings.isMemoPromptEnabled = isOn
+                // 끄는 순간 대기 중인 회고가 있으면 메모 없이 확정한다.
+                // 안 그러면 그 세션이 캘린더에 영영 안 올라간다.
+                if !isOn { recorder.refreshMemoPrompt() }
+            }
+        )
+    }
+
+
+    /// §4.1 다이얼이 처음 가리키는 분.
+    ///
+    /// 5분 단위다. 여기서 1분 단위로 맞출 일이 없다 — 그날의 미세 조정은 다이얼이 한다.
+    private var defaultMinutesRow: some View {
+        card {
+            HStack(spacing: 0) {
+                Text("기본 시간")
+                    .foregroundStyle(Palette.ink)
+
+                Spacer(minLength: 12)
+
+                stepperButton("minus", enabled: settings.defaultMinutes > AppSettings.minutesStep) {
+                    changeDefaultMinutes(by: -AppSettings.minutesStep)
+                }
+
+                Text("\(settings.defaultMinutes)분")
+                    .foregroundStyle(Palette.ink)
+                    .monospacedDigit()
+                    .frame(minWidth: 62)
+
+                stepperButton("plus", enabled: settings.defaultMinutes < TimerEngine.maximumMinutes) {
+                    changeDefaultMinutes(by: AppSettings.minutesStep)
+                }
+            }
+        }
+    }
+
+    private func stepperButton(
+        _ symbol: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(enabled ? Palette.ink : Palette.stroke)
+                .frame(width: 40, height: 36)
+                .contentShape(Rectangle())
+        }
+        .disabled(!enabled)
+    }
+
+    private func changeDefaultMinutes(by delta: Int) {
+        settings.defaultMinutes = AppSettings.clampedMinutes(settings.defaultMinutes + delta)
+        // 쉬고 있는 다이얼은 즉시 새 값으로 옮겨 준다. 설정하고 돌아갔더니
+        // 그대로면 적용이 안 된 줄 안다.
+        timerModel.applyDefaultMinutes(settings.defaultMinutes)
+    }
+
+    /// §7 어느 캘린더에 남길지.
+    ///
+    /// 쓰기 전용 권한에서도 목록 조회가 되는 것을 확인하고 넣었다. 전체 접근으로
+    /// 올리지 않는다. 권한이 없거나 기록이 꺼져 있으면 이 줄 자체를 보여주지 않는다 —
+    /// 고를 수는 있는데 기록이 안 되는 상태가 제일 헷갈린다.
+    private var calendarPickerRow: some View {
+        card {
+            HStack(spacing: 0) {
+                Text("기록할 캘린더")
+                    .foregroundStyle(Palette.ink)
+
+                Spacer(minLength: 12)
+
+                Menu {
+                    Button("기본 캘린더") { settings.calendarIdentifier = nil }
+                    ForEach(calendar.writableCalendars(), id: \.calendarIdentifier) { item in
+                        Button(item.title) { settings.calendarIdentifier = item.calendarIdentifier }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedCalendarTitle)
+                            .foregroundStyle(Palette.inkSecondary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                }
+            }
+        }
+    }
+
+    /// 고른 캘린더가 사라졌으면 "기본 캘린더" 로 보인다. 실제 기록도 그리로 간다.
+    private var selectedCalendarTitle: String {
+        calendar.calendarTitle(for: settings.calendarIdentifier) ?? "기본 캘린더"
+    }
+
 
     /// §10 색 테마.
     ///
@@ -228,13 +350,20 @@ struct SettingsView: View {
     let store = SessionStore(inMemory: true)
     let settings = AppSettings()
     let calendar = CalendarService()
+    let recorder = SessionRecorder(store: store, calendar: calendar, settings: settings)
+    let notifications = NotificationService()
     return ZStack {
         Palette.background.ignoresSafeArea()
         SettingsView(
-            recorder: SessionRecorder(store: store, calendar: calendar, settings: settings),
+            recorder: recorder,
             settings: settings,
             calendar: calendar,
-            notifications: NotificationService()
+            notifications: notifications,
+            timerModel: TimerViewModel(
+                recorder: recorder,
+                notifications: notifications,
+                defaultMinutes: settings.defaultMinutes
+            )
         )
     }
 }

@@ -85,7 +85,11 @@ struct TimerView: View {
     return ZStack {
         Palette.background.ignoresSafeArea()
         TimerView(
-            model: TimerViewModel(recorder: recorder, notifications: NotificationService())
+            model: TimerViewModel(
+                recorder: recorder,
+                notifications: NotificationService(),
+                defaultMinutes: settings.defaultMinutes
+            )
         )
     }
 }

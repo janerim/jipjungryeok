@@ -12,6 +12,9 @@ import FocusCore
 final class AppSettings {
 
     private static let calendarEnabledKey = "settings.calendar.enabled"
+    private static let calendarIdentifierKey = "settings.calendar.identifier"
+    private static let defaultMinutesKey = "settings.timer.defaultMinutes"
+    private static let memoPromptKey = "settings.memo.prompt"
 
     /// §7 캘린더 자동 기록 여부.
     ///
@@ -35,8 +38,58 @@ final class AppSettings {
         }
     }
 
+    /// §7 기록할 캘린더. `nil` 이면 사용자의 기본 캘린더.
+    ///
+    /// 쓰기 전용 권한에서도 캘린더 목록 조회가 된다는 것을 확인하고 넣은 기능이다.
+    /// 전체 접근 권한으로 올릴 필요가 없다.
+    ///
+    /// 고른 캘린더가 사라지면(계정 삭제 등) 기록을 포기하지 않고 기본 캘린더로
+    /// 되돌아간다 — `CalendarService.targetCalendar` 참고.
+    var calendarIdentifier: String? {
+        didSet {
+            AppGroup.defaults.set(calendarIdentifier, forKey: Self.calendarIdentifierKey)
+        }
+    }
+
+    /// §4.1 다이얼이 처음 가리키는 분.
+    ///
+    /// 매번 같은 시간으로 시작하는 사람이 많아서 기본값을 고를 수 있게 했다.
+    /// 5분 단위인 이유는, 여기서 1분 단위로 맞출 일이 없기 때문이다 —
+    /// 그날그날의 미세 조정은 다이얼이 한다.
+    var defaultMinutes: Int {
+        didSet {
+            defaultMinutes = Self.clampedMinutes(defaultMinutes)
+            AppGroup.defaults.set(defaultMinutes, forKey: Self.defaultMinutesKey)
+        }
+    }
+
+    static let minutesStep = 5
+
+    static func clampedMinutes(_ minutes: Int) -> Int {
+        min(TimerEngine.maximumMinutes, max(minutesStep, minutes))
+    }
+
+    /// §6-6 세션이 끝나면 메모 시트를 띄울지.
+    ///
+    /// 이 앱에서 유일하게 사용자를 멈춰 세우는 화면이라 끌 수 있어야 한다.
+    /// 다만 **끄면 메모를 남길 방법이 없어진다** — 나중에 붙이는 화면이 아직 없다.
+    /// 기본값은 켜짐이다.
+    var isMemoPromptEnabled: Bool {
+        didSet {
+            AppGroup.defaults.set(isMemoPromptEnabled, forKey: Self.memoPromptKey)
+        }
+    }
+
     init() {
         isCalendarEnabled = AppGroup.defaults.bool(forKey: Self.calendarEnabledKey)
+        // 저장된 적이 없으면 false 가 오므로 켜짐을 기본으로 뒤집는다.
+        isMemoPromptEnabled = AppGroup.defaults.object(forKey: Self.memoPromptKey) as? Bool ?? true
+        calendarIdentifier = AppGroup.defaults.string(forKey: Self.calendarIdentifierKey)
+
+        let stored = AppGroup.defaults.integer(forKey: Self.defaultMinutesKey)
+        // 한 번도 저장된 적이 없으면 0 이 온다. 그때는 기획서 기본값 25분이다.
+        defaultMinutes = stored == 0 ? 25 : Self.clampedMinutes(stored)
+
         theme = ThemeStore.apply()
     }
 }

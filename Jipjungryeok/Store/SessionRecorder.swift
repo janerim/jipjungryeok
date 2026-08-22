@@ -43,7 +43,8 @@ final class SessionRecorder {
         store.save(record)
 
         // 중도 중지한 세션은 묻지 않는다. 2분 만에 접은 세션에 "무엇을 했나요" 는 잡음이다.
-        guard record.isCompleted else {
+        // 설정에서 회고를 껐을 때도 같은 길로 간다 — 묻지 않고 바로 캘린더에 올린다.
+        guard record.isCompleted, settings.isMemoPromptEnabled else {
             writeToCalendar(record)
             return
         }
@@ -58,6 +59,13 @@ final class SessionRecorder {
 
     /// 앱을 열거나 포그라운드로 돌아왔을 때, 물어볼 메모가 남아 있는지 확인한다.
     func refreshMemoPrompt(now: Date = .now) {
+        // 대기 중인 것이 남아 있는 상태로 설정을 껐을 수 있다. 그냥 두면 그 세션이
+        // 영영 캘린더에 안 올라가므로, 묻지 않고 메모 없이 확정한다.
+        guard settings.isMemoPromptEnabled else {
+            finalizeMemoPrompt(memo: nil)
+            return
+        }
+
         guard let pending = PendingMemoStore.load() else {
             memoPrompt = nil
             return
@@ -111,7 +119,7 @@ final class SessionRecorder {
                 CalendarRetryQueue.remove(id)
                 continue
             }
-            if let eventID = calendar.record(record) {
+            if let eventID = calendar.record(record, in: settings.calendarIdentifier) {
                 store.attachCalendarEvent(eventID, to: id)
                 CalendarRetryQueue.remove(id)
             }
@@ -137,7 +145,8 @@ final class SessionRecorder {
         // 실패가 아니라 사용자가 원하지 않은 것이다 (§7).
         guard settings.isCalendarEnabled else { return }
 
-        guard calendar.canWrite, let eventID = calendar.record(record) else {
+        guard calendar.canWrite,
+              let eventID = calendar.record(record, in: settings.calendarIdentifier) else {
             CalendarRetryQueue.add(record.id)
             return
         }

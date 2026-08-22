@@ -21,10 +21,19 @@ final class TimerViewModel {
     @ObservationIgnored private let recorder: SessionRecorder
     @ObservationIgnored private let notifications: NotificationService
 
-    init(recorder: SessionRecorder, notifications: NotificationService) {
+    init(recorder: SessionRecorder, notifications: NotificationService, defaultMinutes: Int) {
         self.recorder = recorder
         self.notifications = notifications
+        // 복구할 세션이 있으면 아래에서 덮어쓴다. 없을 때만 이 값이 다이얼의 출발점이다.
+        self.engine = TimerEngine(plannedMinutes: defaultMinutes)
         restoreRunningSession()
+    }
+
+    /// §4.3 설정에서 기본값을 바꿨을 때. **쉬고 있을 때만** 반영한다 —
+    /// 돌아가는 세션의 시간을 설정 화면이 바꿔 버리면 안 된다.
+    func applyDefaultMinutes(_ minutes: Int) {
+        guard engine.phase == .idle else { return }
+        engine = TimerEngine(plannedMinutes: minutes)
     }
 
     // MARK: - 화면이 읽는 값

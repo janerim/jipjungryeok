@@ -48,7 +48,8 @@ struct RootView: View {
                     recorder: recorder,
                     settings: settings,
                     calendar: calendar,
-                    notifications: notifications
+                    notifications: notifications,
+                    timerModel: timerModel
                 )
                 .tag(Page.settings)
             }
@@ -112,7 +113,11 @@ extension RootView {
             settings: settings,
             calendar: calendar,
             notifications: notifications,
-            timerModel: TimerViewModel(recorder: recorder, notifications: notifications)
+            timerModel: TimerViewModel(
+                recorder: recorder,
+                notifications: notifications,
+                defaultMinutes: settings.defaultMinutes
+            )
         )
     }
 }

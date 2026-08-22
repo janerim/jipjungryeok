@@ -28,7 +28,11 @@ struct JipjungryeokApp: App {
         _notifications = State(initialValue: notifications)
         _recorder = State(initialValue: recorder)
         _timerModel = State(
-            initialValue: TimerViewModel(recorder: recorder, notifications: notifications)
+            initialValue: TimerViewModel(
+                recorder: recorder,
+                notifications: notifications,
+                defaultMinutes: settings.defaultMinutes
+            )
         )
     }
 
