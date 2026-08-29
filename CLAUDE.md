@@ -63,6 +63,21 @@ generate 가 validation 에러로 죽는다), 스킴에 걸 앱 타겟 테스트
 
 ---
 
+## 새 버전 낼 때
+
+1. `project.yml` 에서 `MARKETING_VERSION` 과 `CURRENT_PROJECT_VERSION` 을 올린다.
+   **Xcode GUI 에서 고치지 말 것** — 다음 `xcodegen generate` 에 날아간다.
+   1.0 을 낼 때 실제로 그랬고, 그래서 `project.yml` 은 0.1.0 인데 스토어에는 1.0 이 올라갔다.
+2. `Jipjungryeok/App/ReleaseNotes.swift` 에 그 버전의 변경 사항을 적는다.
+   비워 두면 업데이트 안내가 뜨지 않는다 (§4.4). 버그 수정만 있는 릴리즈는 그게 맞다.
+3. `docs/appstore-metadata.md` 의 "이번 버전의 새로운 기능" 을 고친다.
+4. `cd FocusCore && swift test` → `xcodebuild archive` → Xcode Organizer 에서 업로드.
+
+`Info.plist` 는 생성물이고 `$(MARKETING_VERSION)` 을 참조한다. 여기에 값을 직접 적으면
+XcodeGen 이 덮어쓰지 않아 버전을 올려도 옛 값이 나간다.
+
+---
+
 ## 구조와 규칙
 
 ```

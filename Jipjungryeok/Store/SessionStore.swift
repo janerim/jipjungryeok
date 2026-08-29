@@ -64,6 +64,21 @@ final class SessionStore {
     /// 세션이 끝난 뒤 받은 메모를 붙인다.
     ///
     /// 회고 카드가 바로 바뀌어야 하므로 `reload()` 까지 한다.
+    /// §6-7 회고를 저장한 시각까지 세션을 늘린다.
+    ///
+    /// 늘릴 것이 없으면 아무것도 하지 않는다 — 저장(persist)과 통계 갱신(reload)은
+    /// 값이 실제로 바뀔 때만 해야 한다.
+    func extendSession(_ sessionID: UUID, savedAt: Date) {
+        guard let session = fetchSession(id: sessionID) else { return }
+        let record = session.record
+        guard SessionExtension.extraSeconds(originalEnd: record.endAt, savedAt: savedAt) > 0 else { return }
+
+        session.endAt = SessionExtension.extendedEnd(originalEnd: record.endAt, savedAt: savedAt)
+        session.actualSeconds = SessionExtension.extendedActualSeconds(original: record, savedAt: savedAt)
+        persist()
+        reload()
+    }
+
     func attachMemo(_ memo: String, to sessionID: UUID) {
         guard let session = fetchSession(id: sessionID) else { return }
         session.memo = memo

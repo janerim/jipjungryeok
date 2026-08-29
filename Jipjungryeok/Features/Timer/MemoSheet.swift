@@ -10,6 +10,12 @@ import FocusCore
 struct MemoSheet: View {
 
     let session: SessionRecord
+
+    /// §6-7 시트를 띄워 둔 채 계속 일한 시간을 세션에 더할지.
+    /// 참이면 제목이 1초마다 갱신되어 **저장하면 기록될 값**을 그대로 보여준다.
+    /// 이 표시가 없으면 "25분 완료" 라고 쓰여 있는데 40분이 저장되는 일이 생긴다.
+    let canExtend: Bool
+
     let onSubmit: (String?) -> Void
 
     @State private var memo = ""
@@ -58,20 +64,43 @@ struct MemoSheet: View {
         .onAppear { isFieldFocused = true }
     }
 
+    @ViewBuilder
     private var header: some View {
+        if canExtend {
+            // 1초마다 다시 그린다. 저장 버튼을 누르는 순간의 값과 화면의 값이 같아야 한다.
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                headerBody(
+                    title: "\(TimeDisplay.minutes(elapsedSeconds(at: context.date)))분 집중 중",
+                    caption: "저장을 누르면 여기까지 기록됩니다"
+                )
+            }
+        } else {
+            headerBody(
+                title: "\(TimeDisplay.minutes(session.actualSeconds))분 집중 완료",
+                caption: subtitle
+            )
+        }
+    }
+
+    private func headerBody(title: String, caption: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Circle()
                     .fill(Palette.accent)
                     .frame(width: 8, height: 8)
-                Text("\(TimeDisplay.minutes(session.actualSeconds))분 집중 완료")
+                Text(title)
                     .font(Typography.sheetTitle)
                     .foregroundStyle(Palette.ink)
+                    .monospacedDigit()
             }
-            Text(subtitle)
+            Text(caption)
                 .font(Typography.statCaption)
                 .foregroundStyle(Palette.inkSecondary)
         }
+    }
+
+    private func elapsedSeconds(at now: Date) -> Int {
+        SessionExtension.extendedActualSeconds(original: session, savedAt: now)
     }
 
     /// 백그라운드에서 끝나 나중에 묻는 경우가 있으므로 언제 끝난 세션인지 밝힌다.
@@ -118,6 +147,7 @@ struct MemoSheet: View {
             actualSeconds: 1500,
             isCompleted: true
         ),
+        canExtend: true,
         onSubmit: { _ in }
     )
 }

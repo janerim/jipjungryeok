@@ -241,18 +241,28 @@ final class TimerViewModel {
 
     /// 현재 시각으로 다시 계산하고, 종료 시각이 지났으면 완료 처리한다.
     ///
-    /// 1초 타이머와 포그라운드 복귀(§6-2) 양쪽에서 불린다. 백그라운드에 있는 동안
-    /// 세션이 끝났어도 여기서 잡힌다.
+    /// 포그라운드 복귀(§6-2)에서 불린다. 백그라운드에 있는 동안 세션이 끝났어도
+    /// 여기서 잡히는데, **그건 앱을 보고 있을 때 끝난 것이 아니다.**
+    /// 그래서 §6-7 연장 대상이 아니다.
     func refresh() {
+        complete(endedWhileActive: false)
+    }
+
+    /// 1초 타이머가 부른다. 이 경로로 잡힌 완료만 앱을 보고 있는 중에 끝난 것이다.
+    private func tick() {
+        complete(endedWhileActive: true)
+    }
+
+    private func complete(endedWhileActive: Bool) {
         now = .now
         if let record = engine.completeIfElapsed(at: now) {
-            finishCompleted(record)
+            finishCompleted(record, endedWhileActive: endedWhileActive)
         }
     }
 
     // MARK: -
 
-    private func finishCompleted(_ record: SessionRecord) {
+    private func finishCompleted(_ record: SessionRecord, endedWhileActive: Bool = false) {
         stopTicking()
         setScreenAwake(false)
 
@@ -262,7 +272,7 @@ final class TimerViewModel {
 
         // 저장이 곧 통계 갱신이다. SessionStore 가 save 안에서 reload 까지 한다.
         // 설정이 켜져 있으면 여기서 캘린더 기록(§7)까지 이어진다.
-        recorder.finish(record)
+        recorder.finish(record, endedWhileActive: endedWhileActive)
 
         // §8.3 — 끝난 세션이 잠금화면에서 계속 도는 것처럼 보이면 안 된다.
         liveActivity.end()
@@ -312,7 +322,7 @@ final class TimerViewModel {
         stopTicking()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.refresh()
+                self?.tick()
             }
         }
         // 기본 런루프 모드로는 스크롤·페이지 전환 중에 타이머가 멈춘다.

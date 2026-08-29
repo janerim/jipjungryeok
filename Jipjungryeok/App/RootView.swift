@@ -24,6 +24,7 @@ struct RootView: View {
     let timerModel: TimerViewModel
 
     @State private var page: Page = .timer
+    @State private var whatsNew: WhatsNewPayload?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -32,6 +33,26 @@ struct RootView: View {
             // 달라졌는지 모른다. 화면을 통째로 다시 만들어야 새 색이 적용된다.
             // 테마 변경은 드문 일이라 이 비용은 문제가 되지 않는다.
             .id(settings.theme)
+            // §4.4 — 회고 시트와 다른 층에 단다. 같은 뷰에 sheet 를 두 개 붙이면
+            // 나중 것만 살아남는다.
+            .sheet(item: $whatsNew) { payload in
+                WhatsNewSheet(version: payload.version, notes: payload.notes) {
+                    WhatsNewStore.markSeen()
+                }
+            }
+            .task { showWhatsNewIfNeeded() }
+    }
+
+    /// §4.4 업데이트 안내.
+    ///
+    /// 회고가 기다리고 있으면 띄우지 않는다. 그건 사용자의 세션에 관한 것이라
+    /// 우선이고, 두 시트가 겹치면 어느 쪽도 제대로 안 보인다.
+    /// 이번에 못 띄워도 `markSeen()` 을 하지 않았으므로 다음 실행 때 다시 시도한다.
+    private func showWhatsNewIfNeeded() {
+        guard whatsNew == nil, recorder.memoPrompt == nil else { return }
+        let notes = WhatsNewStore.pendingNotes()
+        guard !notes.isEmpty else { return }
+        whatsNew = WhatsNewPayload(version: WhatsNewStore.currentVersion, notes: notes)
     }
 
     private var content: some View {
@@ -59,7 +80,7 @@ struct RootView: View {
                 .padding(.bottom, 10)
         }
         .sheet(item: memoBinding) { session in
-            MemoSheet(session: session) { memo in
+            MemoSheet(session: session, canExtend: recorder.canExtendPrompt) { memo in
                 recorder.finalizeMemoPrompt(memo: memo)
             }
         }
@@ -120,4 +141,11 @@ extension RootView {
             )
         )
     }
+}
+
+/// `sheet(item:)` 이 Identifiable 을 요구해서 감싸는 값. 버전이 곧 신원이다.
+private struct WhatsNewPayload: Identifiable {
+    let version: String
+    let notes: [String]
+    var id: String { version }
 }

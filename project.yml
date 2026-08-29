@@ -23,8 +23,11 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
+    ## 버전은 **여기서만** 고친다. Xcode GUI 에서 고치면 다음 xcodegen generate 에
+    ## 날아간다 — 1.0 을 올릴 때 실제로 그랬다(project.yml 은 0.1.0 인데 스토어는 1.0).
+    ## 업로드할 때마다 CURRENT_PROJECT_VERSION 을 올려야 App Store Connect 가 받는다.
     ## 자동 서명이므로 최초 1회 Xcode > Signing & Capabilities 에서 팀만 선택하면 된다.
-    ## 팀 ID 를 고정하고 싶으면 아래 줄의 주석을 풀고 값을 채울 것.
+    ## 팀 ID 는 scripts/setup-device-signing.sh 가 인증서에서 뽑아 채운다.
     DEVELOPMENT_TEAM: AN8NXDLMN7
     ## iPhone 전용 (§1-1). 아래 각 타겟에서 다시 선언하는 이유는, XcodeGen 이
     ## 타겟 레벨에 자체 기본값(1,2)을 써서 이 프로젝트 레벨 설정을 덮기 때문이다.
@@ -63,13 +66,18 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ## 아이콘은 앱 타겟에만 있다. Jipjungryeok/AppIcon.xcassets 참고.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "2"
     info:
       path: Jipjungryeok/Info.plist
       properties:
         ## 홈화면·App Store 에 보이는 이름만 한글. 타겟/폴더/파일명은 영문 유지 (§1-1)
         CFBundleDisplayName: 집중력
+        ## 빌드 설정을 참조하게 해야 project.yml 의 버전이 실제로 반영된다.
+        ## 값을 직접 적어 두면 Info.plist 에 박히고, XcodeGen 은 이미 있는 파일을
+        ## 덮어쓰지 않아서 버전을 올려도 옛 값이 그대로 나간다 — 1.0 때 실제로 그랬다.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -111,13 +119,15 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.janerim.jipjungryeok.widgets
         PRODUCT_NAME: FocusWidgets
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.1"
+        CURRENT_PROJECT_VERSION: "2"
         SKIP_INSTALL: YES
     info:
       path: FocusWidgets/Info.plist
       properties:
         CFBundleDisplayName: 집중력
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

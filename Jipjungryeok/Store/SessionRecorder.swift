@@ -35,7 +35,16 @@ final class SessionRecorder {
     // MARK: - 세션 종료
 
     /// 세션을 저장하고, 완료된 세션이면 메모를 물어볼 준비를 한다.
-    func finish(_ record: SessionRecord) {
+    /// §6-7 지금 떠 있는 회고를 저장할 때 세션을 늘려도 되는지.
+    ///
+    /// **앱을 보고 있는 상태에서 끝난 세션에만** true 다. 백그라운드에서 끝난 세션은
+    /// 다음에 앱을 열 때 회고를 묻는데(§6-6) 그게 다음 날일 수도 있어서, 그때까지
+    /// 늘리면 있지도 않은 긴 세션이 만들어진다.
+    private(set) var canExtendPrompt = false
+
+    /// - Parameter endedWhileActive: 1초 타이머가 잡아낸 완료인지. 앱이 꺼져 있거나
+    ///   백그라운드에 있는 동안 끝나 뒤늦게 정리하는 경우에는 `false`.
+    func finish(_ record: SessionRecord, endedWhileActive: Bool = false) {
         // 앞 세션의 메모를 아직 못 받았다면 여기서 메모 없이 확정한다.
         // 안 그러면 그 세션이 캘린더에 영영 올라가지 않는다.
         finalizeMemoPrompt(memo: nil)
@@ -50,6 +59,7 @@ final class SessionRecorder {
         }
 
         PendingMemoStore.save(PendingMemo(sessionID: record.id, finishedAt: .now))
+        canExtendPrompt = endedWhileActive
         // 포그라운드였다면 이 순간 시트가 뜬다. 백그라운드였다면 다음에 앱을 열 때
         // `refreshMemoPrompt()` 가 같은 값을 되살린다.
         memoPrompt = record
@@ -65,6 +75,10 @@ final class SessionRecorder {
             finalizeMemoPrompt(memo: nil)
             return
         }
+
+        // 앱을 다시 열어 되살린 회고는 늘리지 않는다. 언제 끝났는지와 지금이
+        // 얼마나 떨어져 있는지 알 수 없다.
+        canExtendPrompt = false
 
         guard let pending = PendingMemoStore.load() else {
             memoPrompt = nil
@@ -90,11 +104,19 @@ final class SessionRecorder {
     /// 메모 입력이 끝났을 때 부른다. 건너뛰기·시트 닫기는 `nil` 이다.
     ///
     /// **여기서 비로소 캘린더에 기록한다.**
-    func finalizeMemoPrompt(memo: String?) {
+    func finalizeMemoPrompt(memo: String?, savedAt: Date = .now) {
         memoPrompt = nil
+        let canExtend = canExtendPrompt
+        canExtendPrompt = false
 
         guard let pending = PendingMemoStore.load() else { return }
         PendingMemoStore.clear()
+
+        // §6-7 — 시트를 띄워 둔 채 계속 일한 경우 저장 시각까지가 세션이다.
+        // 메모를 붙이기 전에 늘려야 아래에서 다시 읽은 값에 반영된다.
+        if canExtend {
+            store.extendSession(pending.sessionID, savedAt: savedAt)
+        }
 
         if let text = CalendarEventFormat.normalizedMemo(memo) {
             store.attachMemo(text, to: pending.sessionID)
