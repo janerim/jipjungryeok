@@ -13,10 +13,22 @@ struct StatsView: View {
 
     let store: SessionStore
 
-    /// 시트를 열 때 한 번 읽어서 담아 둔다. 상시 보관하지 않는 이유는 SessionStore 참고.
-    @State private var history: IdentifiedDays?
+    /// 메모 수정(§4.2-3)은 캘린더 notes 까지 건드리므로 레코더를 거친다.
+    let recorder: SessionRecorder
 
+    @State private var showsHistory = false
+    @State private var editing: SessionRecord?
+
+    /// §4.4 와 같은 이유로 시트를 두 층에 나눠 단다. 한 뷰에 `sheet` 를 두 개 붙이면
+    /// 나중 것만 살아남아서, 기록 시트를 달면 메모 수정 시트가 조용히 죽는다.
     var body: some View {
+        content
+            .sheet(isPresented: $showsHistory) {
+                HistoryView(store: store, recorder: recorder)
+            }
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 TodayRing(seconds: store.summary.todaySeconds)
@@ -41,8 +53,11 @@ struct StatsView: View {
             // 자정을 넘겼거나 다른 화면에서 세션이 끝났을 수 있다.
             store.reload()
         }
-        .sheet(item: $history) { days in
-            HistoryView(days: days.value)
+        .sheet(item: $editing) { session in
+            MemoEditSheet(session: session) { memo in
+                // `store.setMemo` 안에서 `reload()` 까지 하므로 목록이 바로 바뀐다.
+                recorder.updateMemo(memo, for: session.id)
+            }
         }
     }
 
@@ -73,7 +88,7 @@ struct StatsView: View {
                             .foregroundStyle(Palette.inkSecondary)
 
                         ForEach(day.sessions) { session in
-                            SessionRow(session: session)
+                            SessionRow(session: session) { editing = session }
                         }
                     }
                 }
@@ -84,7 +99,7 @@ struct StatsView: View {
     /// 최근 몇 건 너머를 보려면 여기로 들어간다 (§4.2-3).
     private var historyButton: some View {
         Button {
-            history = IdentifiedDays(value: SessionHistory.byDay(store.allRecords()))
+            showsHistory = true
         } label: {
             HStack(spacing: 4) {
                 Text("전체")
@@ -119,17 +134,18 @@ struct StatsView: View {
     }
 }
 
-/// `sheet(item:)` 은 Identifiable 을 요구하는데 배열에는 신원이 없다.
-/// 별도 상태 플래그를 두는 것보다, 열 때 읽은 값을 그대로 시트에 넘기는 편이
-/// "여는 순간의 목록" 이라는 의도가 분명하다.
-private struct IdentifiedDays: Identifiable {
-    let id = UUID()
-    let value: [HistoryDay]
-}
-
 #Preview {
-    ZStack {
+    let store = SessionStore(inMemory: true)
+    let settings = AppSettings()
+    return ZStack {
         Palette.background.ignoresSafeArea()
-        StatsView(store: SessionStore(inMemory: true))
+        StatsView(
+            store: store,
+            recorder: SessionRecorder(
+                store: store,
+                calendar: CalendarService(),
+                settings: settings
+            )
+        )
     }
 }

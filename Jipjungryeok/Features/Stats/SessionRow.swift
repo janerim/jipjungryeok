@@ -9,7 +9,21 @@ struct SessionRow: View {
 
     let session: SessionRecord
 
+    /// 누르면 메모를 고친다 (§4.2-3).
+    let onTap: () -> Void
+
     var body: some View {
+        Button(action: onTap) {
+            row
+        }
+        .pressable()
+        // 시각·분·중단·메모가 따로 읽히면 한 줄이 네 번에 나뉜다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("두 번 탭하여 메모 수정")
+    }
+
+    private var row: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
             // 시각을 고정폭 열로 세워야 하루치가 시간축처럼 읽힌다.
             Text(TimeDisplay.clockTime(session.startAt))
@@ -45,9 +59,9 @@ struct SessionRow: View {
 
             Spacer(minLength: 0)
         }
-        // 시각·분·중단·메모가 따로 읽히면 한 줄이 네 번에 나뉜다.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
+        // 글자 높이만으로는 손가락이 닿기 어렵고, 메모가 없는 줄은 특히 얇다.
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
     private var accessibilityLabel: String {

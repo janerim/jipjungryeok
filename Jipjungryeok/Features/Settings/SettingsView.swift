@@ -83,7 +83,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("회고 남기기")
                         .foregroundStyle(Palette.ink)
-                    Text("세션이 끝나면 메모를 묻습니다")
+                    Text("세션이 끝나거나 멈추면 메모를 묻습니다")
                         .font(Typography.statCaption)
                         .foregroundStyle(Palette.inkSecondary)
                 }

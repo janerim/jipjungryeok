@@ -34,32 +34,33 @@ final class SessionRecorder {
 
     // MARK: - 세션 종료
 
-    /// 세션을 저장하고, 완료된 세션이면 메모를 물어볼 준비를 한다.
     /// §6-7 지금 떠 있는 회고를 저장할 때 세션을 늘려도 되는지.
     ///
-    /// **앱을 보고 있는 상태에서 끝난 세션에만** true 다. 백그라운드에서 끝난 세션은
-    /// 다음에 앱을 열 때 회고를 묻는데(§6-6) 그게 다음 날일 수도 있어서, 그때까지
-    /// 늘리면 있지도 않은 긴 세션이 만들어진다.
+    /// **앱을 보고 있는 상태에서 끝난 완료 세션에만** true 다. 판단은 `SessionEnding` 이
+    /// 한다 — 백그라운드에서 끝난 세션이나 중지한 세션까지 늘리면 있지도 않은
+    /// 긴 세션이 만들어진다.
     private(set) var canExtendPrompt = false
 
-    /// - Parameter endedWhileActive: 1초 타이머가 잡아낸 완료인지. 앱이 꺼져 있거나
-    ///   백그라운드에 있는 동안 끝나 뒤늦게 정리하는 경우에는 `false`.
-    func finish(_ record: SessionRecord, endedWhileActive: Bool = false) {
+    /// 세션을 저장하고, 물어볼 세션이면 회고를 띄울 준비를 한다.
+    ///
+    /// - Parameter ending: 어떻게 끝났는지 (§6-4). 회고를 물을지, 늘려도 되는지가
+    ///   여기서 갈린다. `record.isCompleted` 만으로는 중지와 다이얼 교체가 구분되지 않는다.
+    func finish(_ record: SessionRecord, ending: SessionEnding) {
         // 앞 세션의 메모를 아직 못 받았다면 여기서 메모 없이 확정한다.
         // 안 그러면 그 세션이 캘린더에 영영 올라가지 않는다.
         finalizeMemoPrompt(memo: nil)
 
         store.save(record)
 
-        // 중도 중지한 세션은 묻지 않는다. 2분 만에 접은 세션에 "무엇을 했나요" 는 잡음이다.
-        // 설정에서 회고를 껐을 때도 같은 길로 간다 — 묻지 않고 바로 캘린더에 올린다.
-        guard record.isCompleted, settings.isMemoPromptEnabled else {
+        // 다이얼을 돌려 밀려난 세션은 묻지 않는다. 설정에서 회고를 껐을 때도 같은
+        // 길로 간다 — 묻지 않고 바로 캘린더에 올린다.
+        guard ending.asksMemo, settings.isMemoPromptEnabled else {
             writeToCalendar(record)
             return
         }
 
         PendingMemoStore.save(PendingMemo(sessionID: record.id, finishedAt: .now))
-        canExtendPrompt = endedWhileActive
+        canExtendPrompt = ending.allowsExtension
         // 포그라운드였다면 이 순간 시트가 뜬다. 백그라운드였다면 다음에 앱을 열 때
         // `refreshMemoPrompt()` 가 같은 값을 되살린다.
         memoPrompt = record
@@ -119,12 +120,32 @@ final class SessionRecorder {
         }
 
         if let text = CalendarEventFormat.normalizedMemo(memo) {
-            store.attachMemo(text, to: pending.sessionID)
+            store.setMemo(text, on: pending.sessionID)
         }
 
         // 메모가 붙은 뒤의 값을 다시 읽어야 캘린더 notes 에 들어간다.
         guard let record = store.record(with: pending.sessionID) else { return }
         writeToCalendar(record)
+    }
+
+    /// §4.2-3 이미 저장된 세션의 메모를 고친다. 비우면 지운다.
+    ///
+    /// 회고는 세션이 끝난 직후 딱 한 번 뜨고 사라진다. 그 순간에 제대로 못 적거나
+    /// (회의에 불려 가는 중이었다) 나중에 생각나는 일이 있는데, 고칠 길이 없으면
+    /// 그 메모는 틀린 채로 영영 남는다.
+    ///
+    /// 캘린더 notes 도 함께 맞춘다. 실패해도 앱 안의 기록은 그대로 고쳐진다 —
+    /// 쓰기 전용 권한에서는 이벤트를 다시 꺼낼 수 없기 때문이다(`updateNotes` 참고).
+    func updateMemo(_ memo: String?, for sessionID: UUID) {
+        let normalized = CalendarEventFormat.normalizedMemo(memo)
+        store.setMemo(normalized, on: sessionID)
+
+        // 캘린더 기록을 꺼 뒀다면 손대지 않는다. 과거 이벤트를 지우지 않는 것과
+        // 같은 이유다 — 사용자의 캘린더다 (§7).
+        guard settings.isCalendarEnabled,
+              let eventID = store.calendarEventID(for: sessionID) else { return }
+
+        calendar.updateNotes(eventID: eventID, notes: normalized)
     }
 
     // MARK: - 캘린더 (§7)

@@ -61,7 +61,7 @@ struct RootView: View {
                 .ignoresSafeArea()
 
             TabView(selection: $page) {
-                StatsView(store: store)
+                StatsView(store: store, recorder: recorder)
                     .tag(Page.stats)
                 TimerView(model: timerModel)
                     .tag(Page.timer)

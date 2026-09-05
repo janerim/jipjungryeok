@@ -24,7 +24,7 @@ struct TimerView: View {
                     onMinutesChanged: { model.dialDragged(toMinutes: $0) },
                     onDragEnded: { model.dialDragEnded() },
                     onTap: { model.dialTapped() },
-                    onLongPress: { model.dialLongPressed() }
+                    onLongPress: { model.stop() }
                 )
 
                 // 다이얼과 숫자 사이는 고정 간격이다. 여기에 Spacer 를 두면 남는 세로
@@ -61,12 +61,52 @@ struct TimerView: View {
                 .accessibilityLabel(model.accessibilityStatus)
                 .accessibilityHint(model.accessibilityActionHint)
 
+                stopButton
+                    .padding(.top, 10)
+
                 // 남는 공간은 전부 숫자 아래로 보낸다. 최소값은 하단 페이지
                 // 인디케이터와 겹치지 않을 만큼.
                 Spacer(minLength: 44)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
+    }
+
+    /// §4.1 중지. 세션이 도는 동안에만 보인다.
+    ///
+    /// 오래도록 다이얼 길게 누르기가 유일한 길이었다. 그건 알고 있어야만 쓸 수 있는
+    /// 동작이라, 중간에 그만둬야 하는 사람은 기록이 안 남는 줄 알고 타이머를 그냥
+    /// 내버려 뒀다. 길게 누르기는 그대로 두고 보이는 길을 하나 더 낸다.
+    ///
+    /// 숫자의 탭 영역 **바깥**에 둔다. 안에 넣으면 중지를 누르려다 일시정지가 된다.
+    ///
+    /// 화면 전체가 조용한 앱이라 채운 버튼은 여기서 너무 시끄럽다. 테두리만 두른
+    /// 캡슐이면 세션이 도는 동안에만 나타나는 것으로 충분히 눈에 띈다.
+    private var stopButton: some View {
+        Button {
+            model.stop()
+        } label: {
+            Text("중지")
+                .font(Typography.statCaption)
+                .foregroundStyle(Palette.inkSecondary)
+                .frame(height: 34)
+                .padding(.horizontal, 22)
+                .overlay(
+                    Capsule()
+                        .stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
+                )
+                // 캡슐은 34pt 로 두고 손가락이 닿는 범위만 44pt 로 넓힌다 (§12).
+                .frame(height: 44)
+                .contentShape(Rectangle())
+        }
+        .pressable()
+        .accessibilityHint("세션을 끝내고 지금까지를 기록합니다")
+        // 자리를 늘 잡아 둔다. 세션을 시작하는 순간 버튼이 끼어들면서 위의 숫자가
+        // 밀려 올라가면, 막 누른 곳이 움직이는 것으로 보인다.
+        .opacity(model.canStop ? 1 : 0)
+        .allowsHitTesting(model.canStop)
+        .animation(.easeInOut(duration: 0.2), value: model.canStop)
+        .accessibilityHidden(!model.canStop)
     }
 
     /// 다이얼은 터치 여백(§4.0, 사방 40pt)까지 포함해서 자리를 차지하므로,

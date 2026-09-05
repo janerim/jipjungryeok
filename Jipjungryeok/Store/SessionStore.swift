@@ -79,7 +79,14 @@ final class SessionStore {
         reload()
     }
 
-    func attachMemo(_ memo: String, to sessionID: UUID) {
+    /// 메모를 붙이거나 고친다. `nil` 이면 지운다.
+    ///
+    /// 세션 직후 받는 회고(§6-6)와 나중에 기록 화면에서 고치는 것(§4.2-3)이 같은 길로 온다.
+    /// 두 경로를 나누면 한쪽만 `reload()` 를 빠뜨려 목록이 옛 메모를 남기게 된다.
+    ///
+    /// **`nil` 을 받아 지울 수 있어야 한다.** 잘못 적은 메모를 비웠는데 옛 값이 그대로면
+    /// 지울 방법이 아예 없다.
+    func setMemo(_ memo: String?, on sessionID: UUID) {
         guard let session = fetchSession(id: sessionID) else { return }
         session.memo = memo
         persist()
@@ -89,6 +96,15 @@ final class SessionStore {
     /// 재시도 큐와 메모 대기가 id 로 세션을 되찾을 때 쓴다 (§7).
     func record(with id: UUID) -> SessionRecord? {
         fetchSession(id: id)?.record
+    }
+
+    /// 이미 만들어진 캘린더 이벤트의 식별자. 메모를 고칠 때 그 이벤트의 notes 도
+    /// 함께 고치기 위해 필요하다 (§7).
+    ///
+    /// `SessionRecord` 에 넣지 않는 이유는 그게 엔진의 관심사가 아니기 때문이다 —
+    /// 저장 이후 캘린더 기록이 성공해야 채워지는 값이다.
+    func calendarEventID(for sessionID: UUID) -> String? {
+        fetchSession(id: sessionID)?.calendarEventID
     }
 
     private func fetchSession(id: UUID) -> FocusSession? {

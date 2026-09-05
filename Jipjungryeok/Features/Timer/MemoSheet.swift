@@ -36,7 +36,7 @@ struct MemoSheet: View {
 
                 // 한 줄만 보이면 길게 쓸 생각이 안 든다. 처음부터 여러 줄 높이를
                 // 잡아두고, 늘어나도 시트가 밀리지 않을 만큼만 허용한다.
-                TextField("무엇을 했나요?", text: $memo, axis: .vertical)
+                TextField(kind.placeholder, text: $memo, axis: .vertical)
                     // 시트 제목과 같은 크기. 여기가 제목보다 크면 한 줄짜리 메모를
                     // 받는 칸이 화면의 주인공처럼 보인다.
                     .font(Typography.sheetTitle)
@@ -76,10 +76,15 @@ struct MemoSheet: View {
             }
         } else {
             headerBody(
-                title: "\(TimeDisplay.minutes(session.actualSeconds))분 집중 완료",
+                title: kind.title(minutes: TimeDisplay.minutes(session.actualSeconds)),
                 caption: subtitle
             )
         }
+    }
+
+    /// 무엇을 묻는지는 세션 하나로 정해진다 (§6-4).
+    private var kind: MemoPromptKind {
+        MemoPromptKind(record: session)
     }
 
     private func headerBody(title: String, caption: String) -> some View {
@@ -104,8 +109,18 @@ struct MemoSheet: View {
     }
 
     /// 백그라운드에서 끝나 나중에 묻는 경우가 있으므로 언제 끝난 세션인지 밝힌다.
+    ///
+    /// 중지한 세션에서는 대신 **기록이 남는다는 사실**을 말한다. 여기까지 온 사람은
+    /// 방금 하던 일을 접은 참이라, 알고 싶은 것은 언제 끝났는지가 아니라
+    /// "이렇게 그만둬도 남나" 다. 사유를 비워 두고 닫아도 남는다는 것을 밝혀 둔다 —
+    /// 안 그러면 적을 말이 없을 때 시트를 닫는 것 자체를 망설인다.
     private var subtitle: String {
-        "\(TimeDisplay.monthDay(session.startAt)) \(TimeDisplay.clockTime(session.endAt)) 종료"
+        switch kind {
+        case .completed:
+            "\(TimeDisplay.monthDay(session.startAt)) \(TimeDisplay.clockTime(session.endAt)) 종료"
+        case .stopped:
+            "비워 두고 닫아도 기록은 남습니다"
+        }
     }
 
     /// 닫기 = 건너뛰기. 시트를 내리면 `RootView` 의 바인딩이 메모 없이 마무리하므로
@@ -126,7 +141,7 @@ struct MemoSheet: View {
         .padding(.trailing, -12)
         .padding(.top, -12)
         .pressable()
-        .accessibilityLabel("메모 없이 닫기")
+        .accessibilityLabel(kind == .stopped ? "사유 없이 닫기" : "메모 없이 닫기")
     }
 
     private var buttons: some View {

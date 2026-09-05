@@ -75,6 +75,9 @@ final class TimerViewModel {
         }
     }
 
+    /// 중지 버튼을 보일지. 쉬고 있을 때는 중지할 것이 없다.
+    var canStop: Bool { engine.phase != .idle }
+
     /// 숫자 아래 한 줄. 돌아가는 중에는 비운다 — 그때는 숫자가 스스로 상태를 말한다.
     var primaryHint: String {
         switch engine.phase {
@@ -128,9 +131,11 @@ final class TimerViewModel {
         let previousMinutes = engine.plannedMinutes
         let wasIdle = engine.phase == .idle
 
-        // 진행 중/일시정지 상태였다면 여기서 기존 세션이 정리된다 (§4.1, §6-4)
+        // 진행 중/일시정지 상태였다면 여기서 기존 세션이 정리된다 (§4.1, §6-4).
+        // `.replaced` 라 사유를 묻지 않는다 — 시간을 다시 맞추는 손동작 한가운데에
+        // 시트가 뜨면 그건 방해다.
         if let finished = engine.setPlannedMinutes(minutes, at: .now) {
-            recorder.finish(finished)
+            recorder.finish(finished, ending: .replaced)
         }
 
         if !wasIdle {
@@ -184,12 +189,19 @@ final class TimerViewModel {
         }
     }
 
-    /// 길게 누르기 = 세션 중지 (§4.1)
-    func dialLongPressed() {
+    /// §4.1 세션 중지. 하단 **중지 버튼**과 다이얼 길게 누르기가 같은 곳으로 온다.
+    ///
+    /// 오래도록 길게 누르기가 유일한 길이었는데, 그건 알고 있어야만 쓸 수 있는
+    /// 동작이라 "끝까지 못 하면 기록이 안 남는다" 고 여기게 만들었다. 실제로는
+    /// 60초만 넘겼으면 그때도 기록됐다 (§6-4). 보이는 버튼을 붙여 그 오해를 없앤다.
+    ///
+    /// 60초 미만이면 엔진이 `nil` 을 돌려주며 조용히 버린다(§6-4). 그 경우 회고도
+    /// 뜨지 않는다 — 물어볼 세션 자체가 없다.
+    func stop() {
         guard engine.phase != .idle else { return }
 
         if let finished = engine.stop(at: .now) {
-            recorder.finish(finished)
+            recorder.finish(finished, ending: .stopped)
         }
         stopTicking()
         setScreenAwake(false)
@@ -272,7 +284,7 @@ final class TimerViewModel {
 
         // 저장이 곧 통계 갱신이다. SessionStore 가 save 안에서 reload 까지 한다.
         // 설정이 켜져 있으면 여기서 캘린더 기록(§7)까지 이어진다.
-        recorder.finish(record, endedWhileActive: endedWhileActive)
+        recorder.finish(record, ending: .completed(endedWhileActive: endedWhileActive))
 
         // §8.3 — 끝난 세션이 잠금화면에서 계속 도는 것처럼 보이면 안 된다.
         liveActivity.end()

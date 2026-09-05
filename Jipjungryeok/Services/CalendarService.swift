@@ -139,4 +139,28 @@ final class CalendarService {
             return nil
         }
     }
+
+    /// §4.2-3 기록 화면에서 메모를 고쳤을 때, 이미 만든 이벤트의 notes 도 맞춘다.
+    ///
+    /// **쓰기 전용 권한에서는 되지 않는다.** 이벤트를 고치려면 먼저 꺼내와야 하는데
+    /// (`event(withIdentifier:)`) 그게 읽기이기 때문이다. 그 경우 조용히 `false` 를
+    /// 돌려주고 앱 안의 기록만 고친다 — 메모 수정을 막을 이유는 없다.
+    /// §6-6 이 "캘린더 기록은 메모가 정해진 뒤에" 로 피해 갔던 문제가 여기서는
+    /// 피할 수 없는 형태로 돌아온 것이다. 이미 만든 이벤트를 고치는 일이니까.
+    ///
+    /// 재시도 큐에 넣지 않는다. 큐는 "세션이 캘린더에 아예 없다" 를 고치는 장치이고,
+    /// 여기는 이벤트가 이미 있는데 notes 만 옛것인 상태다. 다음 수정 때 다시 맞춰진다.
+    @discardableResult
+    func updateNotes(eventID: String, notes: String?) -> Bool {
+        guard canListCalendars,
+              let event = eventStore.event(withIdentifier: eventID) else { return false }
+
+        event.notes = notes
+        do {
+            try eventStore.save(event, span: .thisEvent, commit: true)
+            return true
+        } catch {
+            return false
+        }
+    }
 }

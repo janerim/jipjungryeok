@@ -66,8 +66,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ## 아이콘은 앱 타겟에만 있다. Jipjungryeok/AppIcon.xcassets 참고.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "1.1"
-        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "1.2"
+        CURRENT_PROJECT_VERSION: "3"
     info:
       path: Jipjungryeok/Info.plist
       properties:
@@ -119,8 +119,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.janerim.jipjungryeok.widgets
         PRODUCT_NAME: FocusWidgets
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "1.1"
-        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "1.2"
+        CURRENT_PROJECT_VERSION: "3"
         SKIP_INSTALL: YES
     info:
       path: FocusWidgets/Info.plist
