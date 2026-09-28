@@ -11,13 +11,16 @@ import PackageDescription
 let package = Package(
     name: "FocusCore",
     platforms: [
-        .iOS(.v17),
+        .iOS(.v15),
         .watchOS(.v10),
         // 앱은 macOS 에서 돌지 않지만, `swift test` 는 호스트(macOS)용으로 빌드한다.
         // 이 선언이 없으면 배포 타깃이 10.13 으로 떨어져 Color(10.15+)·Date.now(12+) 가
         // 전부 "only available in macOS ..." 로 막히고, 시뮬레이터 없이 로직만 검증하는
         // 이 패키지의 존재 이유가 사라진다.
-        .macOS(.v14)
+        //
+        // iOS 15 와 같은 해에 나온 macOS 12 로 맞춘다. 14 로 두면 iOS 16·17 전용 API 를
+        // 써도 `swift test` 가 통과해서, 아이폰 6s 빌드에서야 드러난다.
+        .macOS(.v12)
     ],
     products: [
         .library(name: "FocusCore", targets: ["FocusCore"])

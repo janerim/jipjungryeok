@@ -3,12 +3,12 @@ import SwiftUI
 @main
 struct JipjungryeokApp: App {
 
-    @State private var store: SessionStore
-    @State private var settings: AppSettings
-    @State private var calendar: CalendarService
-    @State private var notifications: NotificationService
-    @State private var recorder: SessionRecorder
-    @State private var timerModel: TimerViewModel
+    @StateObject private var store: SessionStore
+    @StateObject private var settings: AppSettings
+    @StateObject private var calendar: CalendarService
+    @StateObject private var notifications: NotificationService
+    @StateObject private var recorder: SessionRecorder
+    @StateObject private var timerModel: TimerViewModel
 
     init() {
         // 의존 관계를 여기서 한 번만 엮는다.
@@ -22,13 +22,13 @@ struct JipjungryeokApp: App {
         let notifications = NotificationService()
         let recorder = SessionRecorder(store: store, calendar: calendar, settings: settings)
 
-        _store = State(initialValue: store)
-        _settings = State(initialValue: settings)
-        _calendar = State(initialValue: calendar)
-        _notifications = State(initialValue: notifications)
-        _recorder = State(initialValue: recorder)
-        _timerModel = State(
-            initialValue: TimerViewModel(
+        _store = StateObject(wrappedValue: store)
+        _settings = StateObject(wrappedValue: settings)
+        _calendar = StateObject(wrappedValue: calendar)
+        _notifications = StateObject(wrappedValue: notifications)
+        _recorder = StateObject(wrappedValue: recorder)
+        _timerModel = StateObject(
+            wrappedValue: TimerViewModel(
                 recorder: recorder,
                 notifications: notifications,
                 defaultMinutes: settings.defaultMinutes

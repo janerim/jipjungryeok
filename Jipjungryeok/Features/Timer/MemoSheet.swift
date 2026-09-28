@@ -34,18 +34,18 @@ struct MemoSheet: View {
                     closeButton
                 }
 
-                // 한 줄만 보이면 길게 쓸 생각이 안 든다. 처음부터 여러 줄 높이를
-                // 잡아두고, 늘어나도 시트가 밀리지 않을 만큼만 허용한다.
-                TextField(kind.placeholder, text: $memo, axis: .vertical)
+                // `main` 은 여러 줄로 늘어나는 칸(`axis: .vertical`, iOS 16)이다. iOS 15 에는
+                // 한 줄 칸뿐이라 긴 메모는 옆으로 흐른다. `TextEditor` 로 여러 줄을 받을 수는
+                // 있지만, iOS 15 에서는 배경이 흰색으로 고정돼 테마·다크모드가 깨지고
+                // 엔터가 저장이 아니라 줄바꿈이 된다.
+                TextField(kind.placeholder, text: $memo)
                     // 시트 제목과 같은 크기. 여기가 제목보다 크면 한 줄짜리 메모를
                     // 받는 칸이 화면의 주인공처럼 보인다.
                     .font(Typography.sheetTitle)
                     .foregroundStyle(Palette.ink)
-                    .lineLimit(4...6)
                     .focused($isFieldFocused)
                     .submitLabel(.done)
                     .onSubmit { onSubmit(memo) }
-                    .frame(minHeight: 128, alignment: .topLeading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .overlay(
@@ -58,9 +58,10 @@ struct MemoSheet: View {
             .padding(.horizontal, 24)
             .padding(.top, 28)
             .padding(.bottom, 24)
+            // iOS 15 에는 시트 높이 조절(`presentationDetents`, iOS 16)이 없어서 전체 높이로
+            // 뜬다. 위로 붙이지 않으면 내용이 화면 한가운데 떠 있다.
+            .frame(maxHeight: .infinity, alignment: .top)
         }
-        .presentationDetents([.height(352)])
-        .presentationDragIndicator(.visible)
         .onAppear { isFieldFocused = true }
     }
 

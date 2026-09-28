@@ -17,8 +17,10 @@ struct RootView: View {
     }
 
     let store: SessionStore
-    let recorder: SessionRecorder
-    let settings: AppSettings
+    /// `@Observable` 과 달리 `ObservableObject` 는 body 에서 읽기만 해서는 갱신되지 않는다.
+    /// 이 화면이 직접 읽는 둘(회고 시트, 테마)만 구독한다.
+    @ObservedObject var recorder: SessionRecorder
+    @ObservedObject var settings: AppSettings
     let calendar: CalendarService
     let notifications: NotificationService
     let timerModel: TimerViewModel
@@ -84,7 +86,7 @@ struct RootView: View {
                 recorder.finalizeMemoPrompt(memo: memo)
             }
         }
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: scenePhase) { newPhase in
             guard newPhase == .active else { return }
             // §6-2 — 포그라운드로 돌아오면 절대시각으로 다시 계산하고,
             // 종료 시각이 이미 지났으면 그 시점으로 완료 처리한다.

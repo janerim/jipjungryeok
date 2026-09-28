@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 import FocusCore
 
 /// 끝난 세션 1건을 처리하는 지점.
@@ -12,19 +12,18 @@ import FocusCore
 /// 이미 만든 이벤트를 다시 꺼내 고쳐야 하는데, 쓰기 전용 권한(§7)에서는 그게
 /// 막힐 수 있다. 순서를 뒤집어 그 문제를 통째로 피한다.
 @MainActor
-@Observable
-final class SessionRecorder {
+final class SessionRecorder: ObservableObject {
 
     /// 이 시간이 지난 세션은 묻지 않고 조용히 확정한다.
     /// 어제 세션을 오늘 물어봐야 답이 나오지 않는다.
     private static let memoPromptWindow: TimeInterval = 12 * 60 * 60
 
     /// 메모를 물어볼 세션. 화면이 이걸 보고 시트를 띄운다.
-    private(set) var memoPrompt: SessionRecord?
+    @Published private(set) var memoPrompt: SessionRecord?
 
-    @ObservationIgnored let store: SessionStore
-    @ObservationIgnored private let calendar: CalendarService
-    @ObservationIgnored private let settings: AppSettings
+    let store: SessionStore
+    private let calendar: CalendarService
+    private let settings: AppSettings
 
     init(store: SessionStore, calendar: CalendarService, settings: AppSettings) {
         self.store = store
@@ -39,7 +38,7 @@ final class SessionRecorder {
     /// **앱을 보고 있는 상태에서 끝난 완료 세션에만** true 다. 판단은 `SessionEnding` 이
     /// 한다 — 백그라운드에서 끝난 세션이나 중지한 세션까지 늘리면 있지도 않은
     /// 긴 세션이 만들어진다.
-    private(set) var canExtendPrompt = false
+    @Published private(set) var canExtendPrompt = false
 
     /// 세션을 저장하고, 물어볼 세션이면 회고를 띄울 준비를 한다.
     ///

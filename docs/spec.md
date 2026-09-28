@@ -461,8 +461,10 @@ WidgetKit for watchOS 사용. 3종:
 
 ## 9. 기술 스택 / 프로젝트 구조
 
-- Swift 5.9+, SwiftUI, **최소 지원 iOS 17.0** (워치 확장 시 watchOS 10.0)
-- 영속화: SwiftData (App Group 컨테이너)
+- Swift 5.9+, SwiftUI, **최소 지원 iOS 15.0** (워치 확장 시 watchOS 10.0)
+  - `ios15` 브랜치 한정. 아이폰 6s(마지막 지원 버전이 iOS 15) 개인 설치용이며 스토어에 올리지 않는다.
+    Live Activity·잠금화면 위젯이 없다. `main` 은 iOS 17.0 그대로다.
+- 영속화: Core Data (App Group 컨테이너). SwiftData 가 iOS 17 부터라 `ios15` 브랜치만 다르다.
 - 외부 라이브러리 **없음**
 - 아키텍처: 경량 MVVM. **공유 로직은 로컬 Swift Package `FocusCore`로 분리해 iOS·watchOS·위젯 타깃이 함께 의존한다.**
 

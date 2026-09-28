@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 import FocusCore
 
 /// §4.3 설정.
@@ -8,8 +8,7 @@ import FocusCore
 /// 근거가 있는 예외다 — 캘린더는 권한을 사용자가 켜야 하고(§4.3), 색 테마는 §10 참고.
 /// 알림음·세션 종류 같은 것을 추가하고 싶어지면 §3 의 제외 목록을 먼저 볼 것.
 @MainActor
-@Observable
-final class AppSettings {
+final class AppSettings: ObservableObject {
 
     private static let calendarEnabledKey = "settings.calendar.enabled"
     private static let calendarIdentifierKey = "settings.calendar.identifier"
@@ -21,7 +20,7 @@ final class AppSettings {
     /// 기본값은 꺼짐이다. 권한을 묻는 시점이 사용자가 직접 켤 때여야 하기 때문이다(§4.3).
     /// 끄더라도 **이미 만들어진 과거 이벤트는 지우지 않는다** — 사용자의 캘린더이지
     /// 우리 데이터가 아니다.
-    var isCalendarEnabled: Bool {
+    @Published var isCalendarEnabled: Bool {
         didSet {
             AppGroup.defaults.set(isCalendarEnabled, forKey: Self.calendarEnabledKey)
         }
@@ -31,7 +30,7 @@ final class AppSettings {
     ///
     /// 앱과 위젯이 같은 값을 봐야 하므로 App Group 에 둔다. `Palette` 는 App Group 을
     /// 모르므로(FocusCore 순수성) 값을 여기서 넣어 준다.
-    var theme: PaletteTheme {
+    @Published var theme: PaletteTheme {
         didSet {
             ThemeStore.save(theme)
             Palette.theme = theme
@@ -45,7 +44,7 @@ final class AppSettings {
     ///
     /// 고른 캘린더가 사라지면(계정 삭제 등) 기록을 포기하지 않고 기본 캘린더로
     /// 되돌아간다 — `CalendarService.targetCalendar` 참고.
-    var calendarIdentifier: String? {
+    @Published var calendarIdentifier: String? {
         didSet {
             AppGroup.defaults.set(calendarIdentifier, forKey: Self.calendarIdentifierKey)
         }
@@ -56,11 +55,11 @@ final class AppSettings {
     /// 매번 같은 시간으로 시작하는 사람이 많아서 기본값을 고를 수 있게 했다.
     /// 5분 단위인 이유는, 여기서 1분 단위로 맞출 일이 없기 때문이다 —
     /// 그날그날의 미세 조정은 다이얼이 한다.
-    /// **`didSet` 안에서 자기 자신에 대입하지 말 것.** `@Observable` 이 저장 프로퍼티를
-    /// 계산 프로퍼티로 바꾸기 때문에 setter 가 다시 불려 무한 재귀로 죽는다.
-    /// 일반 저장 프로퍼티에서는 재귀하지 않지만 여기서는 다르다.
+    /// **`didSet` 안에서 자기 자신에 대입하지 말 것.** `main` 의 `@Observable` 에서는
+    /// 저장 프로퍼티가 계산 프로퍼티로 바뀌어 setter 가 다시 불려 무한 재귀로 죽는다.
+    /// 이 브랜치의 `@Published` 는 그렇지 않지만, `main` 과 같은 규칙을 지켜 둔다.
     /// 그래서 범위 보정은 아래 `setDefaultMinutes(_:)` 가 맡고, 바깥에서는 그것만 쓴다.
-    private(set) var defaultMinutes: Int {
+    @Published private(set) var defaultMinutes: Int {
         didSet {
             AppGroup.defaults.set(defaultMinutes, forKey: Self.defaultMinutesKey)
         }
@@ -81,7 +80,7 @@ final class AppSettings {
     /// 이 앱에서 유일하게 사용자를 멈춰 세우는 화면이라 끌 수 있어야 한다.
     /// 다만 **끄면 메모를 남길 방법이 없어진다** — 나중에 붙이는 화면이 아직 없다.
     /// 기본값은 켜짐이다.
-    var isMemoPromptEnabled: Bool {
+    @Published var isMemoPromptEnabled: Bool {
         didSet {
             AppGroup.defaults.set(isMemoPromptEnabled, forKey: Self.memoPromptKey)
         }

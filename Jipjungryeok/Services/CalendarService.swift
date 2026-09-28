@@ -1,12 +1,16 @@
 import Foundation
-import Observation
+import Combine
 import EventKit
 import FocusCore
 
 /// §7 iPhone 캘린더 연동.
 ///
-/// **쓰기 전용 권한만 요청한다** (`requestWriteOnlyAccessToEvents`). 읽기 권한은
+/// `main` 은 **쓰기 전용 권한만 요청한다** (`requestWriteOnlyAccessToEvents`). 읽기 권한은
 /// 필요 없고, 심사·프라이버시에서도 불리하다.
+///
+/// `ios15` 브랜치는 그럴 수 없다. 쓰기 전용 권한이 iOS 17 에 생겼고, 그 전에는
+/// `requestAccess(to:)` 하나로 읽기·쓰기를 한꺼번에 받는다. 그래서 권한 상태가
+/// `.authorized` 하나뿐이고, 기록과 캘린더 선택이 같은 권한으로 된다.
 ///
 /// **전용 "집중" 캘린더는 만들지 않는다. 기본 캘린더에만 기록한다.**
 /// 전용 캘린더를 유지하려면 매번 기존 것을 찾아내야 하는데, 그 조회
@@ -17,30 +21,30 @@ import FocusCore
 /// 대신 집중 세션이 사용자의 일반 일정과 같은 캘린더에 섞인다. 이벤트 제목의
 /// `🎯` 접두어가 유일한 구분 수단이다 (§7).
 @MainActor
-@Observable
-final class CalendarService {
+final class CalendarService: ObservableObject {
 
-    private(set) var authorizationStatus: EKAuthorizationStatus
+    @Published private(set) var authorizationStatus: EKAuthorizationStatus
 
-    @ObservationIgnored private let eventStore = EKEventStore()
+    private let eventStore = EKEventStore()
 
     init() {
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
     }
 
-    /// 쓰기 전용이든 전체든, 이벤트를 만들 수 있는 상태인지.
+    /// 이벤트를 만들 수 있는 상태인지.
+    ///
+    /// `.authorized` 는 iOS 17 SDK 에서 deprecated 경고가 나지만 iOS 15 에는 이것뿐이다.
+    /// iOS 17 의 `.fullAccess` 와 raw value 가 같아서 iOS 17 시뮬레이터에서도 맞게 판정된다.
     var canWrite: Bool {
-        authorizationStatus == .writeOnly || authorizationStatus == .fullAccess
+        authorizationStatus == .authorized
     }
 
     /// 캘린더 **목록을 읽을 수 있는** 상태인지.
     ///
-    /// 쓰기 전용 권한으로는 이벤트를 만들 수는 있어도 캘린더를 열거하지 못한다.
-    /// 시뮬레이터에서는 로컬 캘린더가 보여서 되는 줄 알았는데, 실기기의 iCloud
-    /// 계정에서는 빈 목록이 돌아온다. 그래서 캘린더 **선택** 기능만 전체 접근을
-    /// 요구하고, 기본 캘린더에 기록하는 것은 쓰기 전용 그대로 둔다 (§7).
+    /// `main` 에서는 쓰기 전용 권한과 구분하느라 따로 있다. iOS 15 에서는 권한이 하나라
+    /// `canWrite` 와 같다. 호출하는 쪽을 `main` 과 같게 두려고 이름을 남긴다.
     var canListCalendars: Bool {
-        authorizationStatus == .fullAccess
+        canWrite
     }
 
     var isDenied: Bool {
@@ -54,22 +58,17 @@ final class CalendarService {
     func requestAccess() async -> Bool {
         if canWrite { return true }
 
-        let granted = (try? await eventStore.requestWriteOnlyAccessToEvents()) ?? false
+        let granted = (try? await eventStore.requestAccess(to: .event)) ?? false
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
         return granted && canWrite
     }
 
     /// §4.3 — 사용자가 "캘린더 선택" 을 누를 때만 부른다.
     ///
-    /// 기본값으로 요구하지 않는 이유는 §7 이다. 전체 접근은 사용자의 모든 일정을
-    /// 읽을 수 있다는 뜻이라, 그게 필요 없는 사람에게까지 물어보지 않는다.
+    /// iOS 15 에서는 기록 권한과 같은 권한이라 `requestAccess()` 로 충분하다.
     @discardableResult
     func requestFullAccess() async -> Bool {
-        if canListCalendars { return true }
-
-        let granted = (try? await eventStore.requestFullAccessToEvents()) ?? false
-        authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-        return granted && canListCalendars
+        await requestAccess()
     }
 
     func refreshAuthorization() {

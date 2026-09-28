@@ -10,20 +10,17 @@ import FocusCore
 struct SettingsView: View {
 
     let recorder: SessionRecorder
-    let settings: AppSettings
-    let calendar: CalendarService
-    let notifications: NotificationService
+    @ObservedObject var settings: AppSettings
+    @ObservedObject var calendar: CalendarService
+    @ObservedObject var notifications: NotificationService
     let timerModel: TimerViewModel
 
     @State private var isRequestingCalendarAccess = false
-    /// 스크롤이 멈춘 위치. 처음에는 비어 있고 `onAppear` 에서 저장된 값으로 채운다 —
-    /// 바인딩으로 바로 물리면 첫 배치 때 적용되지 않아 맨 앞에서 시작한다.
-    @State private var scrolledMinutes: Int?
     @State private var showsFirstResetConfirm = false
     @State private var showsSecondResetConfirm = false
 
     var body: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 10) {
                 calendarRow
                 if calendar.isDenied && settings.isCalendarEnabled {
@@ -54,7 +51,6 @@ struct SettingsView: View {
             // 하단 페이지 인디케이터에 가리지 않게 띄운다
             .padding(.bottom, 44)
         }
-        .scrollIndicators(.hidden)
         .task {
             // 사용자가 시스템 설정에서 권한을 바꾸고 돌아왔을 수 있다.
             calendar.refreshAuthorization()
@@ -108,93 +104,48 @@ struct SettingsView: View {
     /// §4.1 다이얼이 처음 가리키는 분.
     ///
     /// 5분 단위다. 여기서 1분 단위로 맞출 일이 없다 — 그날의 미세 조정은 다이얼이 한다.
-    /// §4.1 다이얼이 처음 가리키는 분. 5분 단위 가로 스크롤.
+    /// §4.1 다이얼이 처음 가리키는 분. 5분 단위 휠.
     ///
-    /// 시스템 휠(`.pickerStyle(.wheel)`)을 쓰지 않는다. 스크롤할 때마다 나는
-    /// "따따닥" 소리를 끌 수 있는 공개 API 가 없고, 휠 안의 글자는 시스템이 직접
-    /// 그려서 `Palette` 도 따르지 않는다. 직접 만들면 둘 다 해결된다.
+    /// `main` 은 시스템 휠을 피하고 가로 스크롤을 직접 만들었다. 휠은 돌릴 때마다
+    /// "따따닥" 소리를 끌 수 없고, 글자를 시스템이 그려 `Palette` 를 온전히 따르지 않는다.
+    /// 그런데 가운데로 착 붙는 가로 스크롤(`scrollTargetBehavior`·`scrollPosition`)이
+    /// iOS 17 부터라, `ios15` 브랜치는 휠로 돌아왔다. 휠은 VoiceOver 조정도 기본으로 된다.
     private var defaultMinutesRow: some View {
         card {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 0) {
-                    Text("기본 시간")
-                        .foregroundStyle(Palette.ink)
-                    Spacer(minLength: 12)
-                    Text("\(settings.defaultMinutes)분")
-                        .foregroundStyle(Palette.inkSecondary)
-                        .monospacedDigit()
-                }
+                Text("기본 시간")
+                    .foregroundStyle(Palette.ink)
 
-                minutesScroller
+                Picker("기본 시간", selection: defaultMinutesBinding) {
+                    ForEach(Self.minuteOptions, id: \.self) { minutes in
+                        Text("\(minutes)분")
+                            .foregroundStyle(Palette.ink)
+                            .tag(minutes)
+                    }
+                }
+                .pickerStyle(.wheel)
+                // 휠의 기본 높이(약 216pt)는 설정 카드 하나로는 너무 크다.
+                // 위아래 두 칸씩만 보이게 줄인다.
+                .frame(height: 120)
+                .clipped()
             }
         }
     }
 
-    private static let minuteItemWidth: CGFloat = 56
     private static let minuteOptions: [Int] = Array(
         stride(from: AppSettings.minutesStep, through: TimerEngine.maximumMinutes, by: AppSettings.minutesStep)
     )
 
-    private var minutesScroller: some View {
-        GeometryReader { geometry in
-            // 양옆 여백을 반씩 줘야 첫 값과 끝 값도 가운데로 올 수 있다.
-            let sideInset = max(0, (geometry.size.width - Self.minuteItemWidth) / 2)
-
-            ScrollView(.horizontal) {
-                HStack(spacing: 0) {
-                    ForEach(Self.minuteOptions, id: \.self) { minutes in
-                        Text("\(minutes)")
-                            .font(Typography.sheetTitle)
-                            .monospacedDigit()
-                            .foregroundStyle(
-                                minutes == settings.defaultMinutes ? Palette.ink : Palette.inkSecondary
-                            )
-                            .frame(width: Self.minuteItemWidth, height: 40)
-                            .id(minutes)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollIndicators(.hidden)
-            .contentMargins(.horizontal, sideInset, for: .scrollContent)
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $scrolledMinutes, anchor: .center)
-            .background(
-                // 가운데가 선택 위치라는 것을 알려 준다. 표시가 없으면 어느 값이
-                // 골라진 것인지 스크롤을 멈추기 전까지 알 수 없다.
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Palette.stroke, lineWidth: Metrics.cardStrokeWidth)
-                    .frame(width: Self.minuteItemWidth, height: 40)
-            )
-        }
-        .frame(height: 40)
-        .onAppear { scrolledMinutes = settings.defaultMinutes }
-        .onChange(of: scrolledMinutes) { _, new in applyScrolledMinutes(new) }
-        // 가로 스크롤은 VoiceOver 로 값을 고를 수 없다. 다이얼과 같은 이유로
-        // 조정 동작을 따로 준다.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("기본 시간")
-        .accessibilityValue("\(settings.defaultMinutes)분")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: stepDefaultMinutes(by: AppSettings.minutesStep)
-            case .decrement: stepDefaultMinutes(by: -AppSettings.minutesStep)
-            @unknown default: break
-            }
-        }
+    private var defaultMinutesBinding: Binding<Int> {
+        Binding(
+            get: { settings.defaultMinutes },
+            set: { applyDefaultMinutes($0) }
+        )
     }
 
-    private func stepDefaultMinutes(by delta: Int) {
-        let next = AppSettings.clampedMinutes(settings.defaultMinutes + delta)
-        guard next != settings.defaultMinutes else { return }
-        applyScrolledMinutes(next)
-        // 스크롤 위치도 함께 옮겨야 화면과 낭독 값이 어긋나지 않는다.
-        scrolledMinutes = next
-    }
-
-    /// 스크롤이 멈춘 위치가 곧 선택값이다.
-    private func applyScrolledMinutes(_ minutes: Int?) {
-        guard let minutes, minutes != settings.defaultMinutes else { return }
+    /// 휠이 멈춘 값이 곧 선택값이다.
+    private func applyDefaultMinutes(_ minutes: Int) {
+        guard minutes != settings.defaultMinutes else { return }
         settings.setDefaultMinutes(minutes)
         // 쉬고 있는 다이얼은 즉시 새 값으로 옮겨 준다. 설정하고 돌아갔더니
         // 그대로면 적용이 안 된 줄 안다.

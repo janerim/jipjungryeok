@@ -69,8 +69,28 @@ struct TodayWidgetView: View {
         // 안 하면 위젯만 기본 테마로 남아 홈 화면에서 색이 따로 논다.
         ThemeStore.apply()
 
-        return content
-            .containerBackground(Palette.background, for: .widget)
+        return withWidgetBackground(content)
+    }
+
+    /// `containerBackground` 는 iOS 17 부터다. 그 전에는 배경을 직접 깔고,
+    /// iOS 17 이 자동으로 주던 가장자리 여백도 직접 준다 — 안 주면 중간 크기에서
+    /// 링과 막대가 위젯 테두리에 붙는다.
+    ///
+    /// iOS 17 분기를 남기는 이유: 이 브랜치의 대상은 iOS 15 기기지만, 빌드 확인은
+    /// 이미 깔려 있는 iOS 17 이상 시뮬레이터로 하게 된다. 거기서 `containerBackground` 가
+    /// 없으면 위젯 자리에 "Please adopt…" 경고만 뜬다.
+    @ViewBuilder
+    private func withWidgetBackground<Content: View>(_ content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content
+                .containerBackground(Palette.background, for: .widget)
+        } else {
+            ZStack {
+                Palette.background
+                content
+                    .padding()
+            }
+        }
     }
 
     @ViewBuilder

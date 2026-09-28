@@ -72,7 +72,6 @@ struct TodayRing: View {
                     .font(Typography.statusLabel)
                     .foregroundStyle(Palette.ink)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
             }
         }
         .frame(width: diameter, height: diameter)

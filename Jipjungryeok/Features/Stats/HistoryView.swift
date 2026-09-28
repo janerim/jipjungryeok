@@ -37,7 +37,6 @@ struct HistoryView: View {
                 }
             }
         }
-        .presentationDragIndicator(.visible)
         .task { reload() }
         .sheet(item: $editing) { session in
             MemoEditSheet(session: session) { memo in
@@ -93,7 +92,7 @@ struct HistoryView: View {
     }
 
     private var list: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             LazyVStack(alignment: .leading, spacing: 28) {
                 ForEach(days) { day in
                     VStack(alignment: .leading, spacing: 14) {
@@ -109,7 +108,6 @@ struct HistoryView: View {
             .padding(.top, 20)
             .padding(.bottom, 40)
         }
-        .scrollIndicators(.hidden)
     }
 
     private func dayHeader(_ day: HistoryDay) -> some View {

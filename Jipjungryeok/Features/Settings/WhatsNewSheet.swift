@@ -72,16 +72,10 @@ struct WhatsNewSheet: View {
             .padding(.top, 28)
             .padding(.bottom, 24)
         }
-        .presentationDetents([.height(detentHeight)])
-        .presentationDragIndicator(.visible)
+        // iOS 15 에는 시트 높이 조절(`presentationDetents`, iOS 16)이 없어 전체 높이로 뜬다.
+        // 위의 `Spacer` 가 버튼을 맨 아래로 밀어 준다.
         // X 로 닫든 아래로 내리든 본 것으로 친다. 다시 띄우면 성가시다.
         .onDisappear(perform: onClose)
-    }
-
-    /// 항목 수에 맞춰 높이를 잡는다. 고정값으로 두면 항목이 하나일 때 아래가 비고,
-    /// 넷일 때 잘린다.
-    private var detentHeight: CGFloat {
-        min(520, 190 + CGFloat(notes.count) * 58)
     }
 }
 

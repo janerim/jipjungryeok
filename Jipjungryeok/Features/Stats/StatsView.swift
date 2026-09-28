@@ -11,7 +11,7 @@ import FocusCore
 /// 더 긴 기간이 궁금하면 기록 화면에서 날짜별로 훑는다.
 struct StatsView: View {
 
-    let store: SessionStore
+    @ObservedObject var store: SessionStore
 
     /// 메모 수정(§4.2-3)은 캘린더 notes 까지 건드리므로 레코더를 거친다.
     let recorder: SessionRecorder
@@ -29,7 +29,7 @@ struct StatsView: View {
     }
 
     private var content: some View {
-        ScrollView {
+        ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 28) {
                 TodayRing(seconds: store.summary.todaySeconds)
                     .frame(maxWidth: .infinity)
@@ -48,7 +48,6 @@ struct StatsView: View {
             // 하단 페이지 인디케이터에 가리지 않게 띄운다
             .padding(.bottom, 44)
         }
-        .scrollIndicators(.hidden)
         .onAppear {
             // 자정을 넘겼거나 다른 화면에서 세션이 끝났을 수 있다.
             store.reload()

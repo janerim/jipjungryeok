@@ -36,14 +36,13 @@ struct MemoEditSheet: View {
                     closeButton
                 }
 
-                TextField(kind.placeholder, text: $memo, axis: .vertical)
+                // 한 줄 칸인 이유는 `MemoSheet` 와 같다 (iOS 15).
+                TextField(kind.placeholder, text: $memo)
                     .font(Typography.sheetTitle)
                     .foregroundStyle(Palette.ink)
-                    .lineLimit(4...6)
                     .focused($isFieldFocused)
                     .submitLabel(.done)
                     .onSubmit(save)
-                    .frame(minHeight: 128, alignment: .topLeading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .overlay(
@@ -58,9 +57,9 @@ struct MemoEditSheet: View {
             .padding(.horizontal, 24)
             .padding(.top, 28)
             .padding(.bottom, 24)
+            // 전체 높이 시트라 위로 붙인다 — `MemoSheet` 참고.
+            .frame(maxHeight: .infinity, alignment: .top)
         }
-        .presentationDetents([.height(352)])
-        .presentationDragIndicator(.visible)
         .onAppear { isFieldFocused = true }
     }
 

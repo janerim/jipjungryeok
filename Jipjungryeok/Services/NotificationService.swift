@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 import UserNotifications
 import FocusCore
 
@@ -8,19 +8,18 @@ import FocusCore
 /// **알림음을 쓰지 않는다** (§6-3). 앱을 켜둔 채 쓰는 전제라 포그라운드에서는 햅틱만
 /// 울리고, 백그라운드에서는 무음 배너만 뜬다.
 @MainActor
-@Observable
-final class NotificationService {
+final class NotificationService: ObservableObject {
 
     /// 예약된 종료 알림은 언제나 한 개뿐이다. 같은 식별자로 덮어쓰면 재예약이 된다.
     private static let completionIdentifier = "focus.session.completion"
 
     /// §4.3 설정 화면의 안내 배너가 읽는 값 (M4 에서 연결).
-    private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    @ObservationIgnored private let center = UNUserNotificationCenter.current()
+    private let center = UNUserNotificationCenter.current()
 
     /// `UNUserNotificationCenter.delegate` 는 weak 참조라 여기서 붙잡고 있어야 한다.
-    @ObservationIgnored private let presentationBlocker = ForegroundPresentationBlocker()
+    private let presentationBlocker = ForegroundPresentationBlocker()
 
     init() {
         // 포그라운드 배너를 막으려면 델리게이트가 알림 도착 전에 붙어 있어야 한다.

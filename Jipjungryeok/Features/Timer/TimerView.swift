@@ -4,7 +4,7 @@ import FocusCore
 /// §4.1 타이머 화면 — 앱 실행 시 첫 화면.
 struct TimerView: View {
 
-    let model: TimerViewModel
+    @ObservedObject var model: TimerViewModel
 
     var body: some View {
         GeometryReader { geometry in
@@ -38,7 +38,6 @@ struct TimerView: View {
                         .font(Typography.countdown)
                         .foregroundStyle(Palette.ink)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
                         .animation(.easeInOut(duration: 0.2), value: model.countdownText)
 
                     // 눌러야 시작한다는 것을 알 방법이 이것뿐이다. 돌아가기 시작하면

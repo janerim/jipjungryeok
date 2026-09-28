@@ -1,6 +1,6 @@
 import Foundation
-import Observation
-import SwiftData
+import Combine
+import CoreData
 import WidgetKit
 import FocusCore
 
@@ -11,20 +11,19 @@ import FocusCore
 ///
 /// 집계 자체는 `FocusCore.StatsCalculator` 가 한다. 여기는 꺼내오고 넘겨주는 일만 맡는다.
 @MainActor
-@Observable
-final class SessionStore {
+final class SessionStore: ObservableObject {
 
     /// §4.2-3 통계 화면에 바로 보이는 최근 세션 수. 그 너머는 기록 시트로 간다.
     static let recentLimit = 5
 
-    private(set) var summary: StatsSummary
+    @Published private(set) var summary: StatsSummary
     /// 최근 완료 세션. 회고 섹션이 쓴다.
-    private(set) var recent: [SessionRecord] = []
+    @Published private(set) var recent: [SessionRecord] = []
 
-    @ObservationIgnored private let container: ModelContainer
-    @ObservationIgnored private let calculator: StatsCalculator
+    private let container: NSPersistentContainer
+    private let calculator: StatsCalculator
 
-    private var context: ModelContext { container.mainContext }
+    private var context: NSManagedObjectContext { container.viewContext }
 
     /// - Parameter inMemory: 프리뷰와 테스트용. 디스크에 아무것도 남기지 않는다.
     init(inMemory: Bool = false, calendar: Calendar = .focus) {
@@ -45,7 +44,7 @@ final class SessionStore {
         if let existing = fetchSession(id: record.id) {
             existing.apply(record)
         } else {
-            context.insert(FocusSession(record: record))
+            _ = FocusSession(record: record, context: context)
         }
 
         persist()
@@ -108,17 +107,22 @@ final class SessionStore {
     }
 
     private func fetchSession(id: UUID) -> FocusSession? {
-        var descriptor = FetchDescriptor<FocusSession>(
-            predicate: #Predicate<FocusSession> { $0.id == id }
-        )
-        descriptor.fetchLimit = 1
-        return try? context.fetch(descriptor).first
+        let request = FocusSession.request()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
     }
 
     /// §4.3 데이터 초기화.
+    ///
+    /// `NSBatchDeleteRequest` 를 쓰지 않는다. 그건 컨텍스트를 거치지 않고 디스크에서 바로
+    /// 지워서, 메모리에 올라와 있던 세션이 지워진 뒤에도 남아 보인다. 세션은 많아야
+    /// 수천 건이라 하나씩 지워도 충분히 빠르다.
     func deleteAll() {
         do {
-            try context.delete(model: FocusSession.self)
+            for session in try context.fetch(FocusSession.request()) {
+                context.delete(session)
+            }
         } catch {
             assertionFailure("세션 전체 삭제 실패: \(error)")
         }
@@ -153,11 +157,10 @@ final class SessionStore {
     /// 집계에 필요한 범위만 꺼내온다. 전체를 다 읽을 이유가 없다.
     private func fetchSessionsInWindow(now: Date) -> [SessionRecord] {
         let windowStart = calculator.windowStart(for: now)
-        let descriptor = FetchDescriptor<FocusSession>(
-            predicate: #Predicate<FocusSession> { $0.startAt >= windowStart },
-            sortBy: [SortDescriptor(\.startAt, order: .reverse)]
-        )
-        return ((try? context.fetch(descriptor)) ?? []).map(\.record)
+        let request = FocusSession.request()
+        request.predicate = NSPredicate(format: "startAt >= %@", windowStart as NSDate)
+        request.sortDescriptors = [NSSortDescriptor(key: "startAt", ascending: false)]
+        return ((try? context.fetch(request)) ?? []).map(\.record)
     }
 
     /// §4.2 기록 화면이 쓰는 전체 이력.
@@ -168,8 +171,7 @@ final class SessionStore {
     /// 정렬을 여기서 하지 않는 이유는 `SessionHistory.byDay` 가 §4.2 규칙(`startAt` 기준)에
     /// 맞춰 다시 묶고 정렬하기 때문이다. 두 곳에서 정렬하면 규칙이 갈라진다.
     func allRecords() -> [SessionRecord] {
-        let descriptor = FetchDescriptor<FocusSession>()
-        return ((try? context.fetch(descriptor)) ?? []).map(\.record)
+        ((try? context.fetch(FocusSession.request())) ?? []).map(\.record)
     }
 
     /// §4.2-3 최근 세션. 중도 중지한 것도 포함한다.
@@ -180,11 +182,10 @@ final class SessionStore {
     /// 정렬은 `startAt` 기준이다 — 날짜 판정 규칙(§4.2)과 같은 축을 써야
     /// 기록 시트의 순서와 어긋나지 않는다.
     private func fetchRecent() -> [SessionRecord] {
-        var descriptor = FetchDescriptor<FocusSession>(
-            sortBy: [SortDescriptor(\.startAt, order: .reverse)]
-        )
-        descriptor.fetchLimit = Self.recentLimit
-        return ((try? context.fetch(descriptor)) ?? []).map(\.record)
+        let request = FocusSession.request()
+        request.sortDescriptors = [NSSortDescriptor(key: "startAt", ascending: false)]
+        request.fetchLimit = Self.recentLimit
+        return ((try? context.fetch(request)) ?? []).map(\.record)
     }
 
     // MARK: -
@@ -198,22 +199,40 @@ final class SessionStore {
         }
     }
 
-    private static func makeContainer(inMemory: Bool) -> ModelContainer {
-        let configuration: ModelConfiguration
+    private static func makeContainer(inMemory: Bool) -> NSPersistentContainer {
+        let container = NSPersistentContainer(name: "Jipjungryeok", managedObjectModel: FocusSession.model)
+
+        let description: NSPersistentStoreDescription
         if inMemory {
-            configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+            description = NSPersistentStoreDescription()
+            description.type = NSInMemoryStoreType
         } else {
             // §5 — App Group 컨테이너에 둬야 위젯·워치가 같은 스토어를 볼 수 있다.
-            let url = AppGroup.containerURL.appendingPathComponent("Jipjungryeok.store")
-            configuration = ModelConfiguration(url: url)
+            //
+            // 파일 이름을 `main` 의 SwiftData 스토어(`Jipjungryeok.store`)와 다르게 둔다.
+            // 둘 다 속은 SQLite 라서, 같은 이름이면 이 빌드를 스토어판이 깔린 기기에
+            // 덮어 설치했을 때 모델이 달라 열지 못하고 아래 fatalError 로 죽는다.
+            let url = AppGroup.containerURL.appendingPathComponent("Jipjungryeok-ios15.sqlite")
+            description = NSPersistentStoreDescription(url: url)
         }
+        // 동기로 연다. 비동기로 열면 `init` 의 첫 `reload()` 가 스토어가 붙기 전에 돌아
+        // 빈 통계를 그린다.
+        description.shouldAddStoreAsynchronously = false
+        container.persistentStoreDescriptions = [description]
 
-        do {
-            return try ModelContainer(for: FocusSession.self, configurations: configuration)
-        } catch {
+        var loadError: Error?
+        container.loadPersistentStores { _, error in
+            loadError = error
+        }
+        if let loadError {
             // 스토어를 못 열면 앱이 할 수 있는 일이 없다. 조용히 빈 통계를 보여주느니
             // 원인을 드러내고 죽는 편이 낫다.
-            fatalError("SwiftData 스토어를 열 수 없습니다: \(error)")
+            fatalError("Core Data 스토어를 열 수 없습니다: \(loadError)")
         }
+
+        // 같은 id 가 두 번 들어오면(유일성 제약 충돌) 나중 값으로 덮는다.
+        // 기본 정책은 저장 자체를 실패시켜 세션 하나를 통째로 잃는다.
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        return container
     }
 }

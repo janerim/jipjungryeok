@@ -14,7 +14,7 @@ name: Jipjungryeok
 options:
   bundleIdPrefix: com.janerim
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "15.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -81,13 +81,12 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-        ## §7 캘린더 — 기본은 쓰기 전용이다
-        NSCalendarsWriteOnlyAccessUsageDescription: 완료한 집중 세션을 캘린더에 자동으로 기록하기 위해 사용합니다.
-        ## 기록할 캘린더를 **고를 때만** 전체 접근을 요청한다. 쓰기 전용 권한으로는
-        ## 캘린더 목록을 열거할 수 없기 때문이다(§7). 이 키가 없으면 요청하는 순간 앱이 죽는다.
-        NSCalendarsFullAccessUsageDescription: 기록할 캘린더를 직접 고를 수 있도록 캘린더 목록을 읽습니다. 일정 내용을 수집하거나 외부로 보내지 않습니다.
-        ## §8.3 Live Activity
-        NSSupportsLiveActivities: true
+        ## §7 캘린더 — iOS 15 에는 쓰기 전용 권한이 없어서 전체 접근 하나만 요청한다.
+        ## iOS 16 이하는 이 키를 읽는다. 없으면 요청하는 순간 앱이 죽는다.
+        NSCalendarsUsageDescription: 완료한 집중 세션을 캘린더에 기록하고, 기록할 캘린더를 고를 수 있도록 캘린더 목록을 읽습니다. 일정 내용을 수집하거나 외부로 보내지 않습니다.
+        ## iOS 17 이상에서는 같은 요청(`requestAccess(to:)`)이 전체 접근으로 취급되어 이 키를 읽는다.
+        ## 이 브랜치는 iOS 15 기기용이지만, iOS 17 시뮬레이터로 확인할 때 죽지 않도록 남긴다.
+        NSCalendarsFullAccessUsageDescription: 완료한 집중 세션을 캘린더에 기록하고, 기록할 캘린더를 고를 수 있도록 캘린더 목록을 읽습니다. 일정 내용을 수집하거나 외부로 보내지 않습니다.
         ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: Jipjungryeok/Jipjungryeok.entitlements

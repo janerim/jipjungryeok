@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Combine
 import UIKit
 import FocusCore
 
@@ -9,18 +9,16 @@ import FocusCore
 /// 건드릴 수 없는 것들뿐이다 — 1초 화면 갱신, 햅틱, 화면 자동 잠금,
 /// 그리고 진행 상태 보존과 알림 예약(M3).
 @MainActor
-@Observable
-final class TimerViewModel {
+final class TimerViewModel: ObservableObject {
 
-    private(set) var engine = TimerEngine()
+    @Published private(set) var engine = TimerEngine()
 
     /// 화면 갱신 기준 시각. 1초마다 그리고 포그라운드 복귀 때 갱신된다.
-    private(set) var now: Date = .now
+    @Published private(set) var now: Date = .now
 
-    @ObservationIgnored private var ticker: Timer?
-    @ObservationIgnored private let recorder: SessionRecorder
-    @ObservationIgnored private let notifications: NotificationService
-    @ObservationIgnored private let liveActivity = LiveActivityService()
+    private var ticker: Timer?
+    private let recorder: SessionRecorder
+    private let notifications: NotificationService
 
     init(recorder: SessionRecorder, notifications: NotificationService, defaultMinutes: Int) {
         self.recorder = recorder
@@ -115,10 +113,6 @@ final class TimerViewModel {
             // 강제 종료돼도 예약된 알림은 남아 있지만, 같은 식별자로 덮어써 두면
             // 어느 경우든 정확히 한 개만 남는다.
             scheduleCompletionNotification()
-            // §8.3 — Live Activity 도 마찬가지다. 앱이 죽어 있는 동안 시스템이
-            // 정리했을 수도, 남아 있을 수도 있다. 다시 걸면 남은 것을 먼저 끝내고
-            // 새로 만들므로 어느 경우든 정확히 한 개가 된다.
-            startLiveActivity()
         case .paused, .idle:
             break
         }
@@ -206,7 +200,6 @@ final class TimerViewModel {
         stopTicking()
         setScreenAwake(false)
         notifications.cancelPending()
-        liveActivity.end()
         persistRunningState()
         refresh()
     }
@@ -223,7 +216,6 @@ final class TimerViewModel {
         setScreenAwake(true)
         persistRunningState()
         scheduleCompletionNotification()
-        startLiveActivity()
         refresh()
     }
 
@@ -235,8 +227,6 @@ final class TimerViewModel {
         // §6-5 — 일시정지하면 예약을 반드시 지운다. 안 그러면 멈춰 있는데 알림이 뜬다.
         notifications.cancelPending()
         persistRunningState()
-        // §8.3 — 멈춘 채로 카운트다운이 계속 도는 것처럼 보이면 안 된다.
-        updateLiveActivity(pausedRemainingSeconds: engine.remainingSeconds(at: .now))
         refresh()
     }
 
@@ -247,7 +237,6 @@ final class TimerViewModel {
         persistRunningState()
         // §6-5 — 재개 시 남은 시간으로 재예약
         scheduleCompletionNotification()
-        updateLiveActivity(pausedRemainingSeconds: nil)
         refresh()
     }
 
@@ -286,34 +275,7 @@ final class TimerViewModel {
         // 설정이 켜져 있으면 여기서 캘린더 기록(§7)까지 이어진다.
         recorder.finish(record, ending: .completed(endedWhileActive: endedWhileActive))
 
-        // §8.3 — 끝난 세션이 잠금화면에서 계속 도는 것처럼 보이면 안 된다.
-        liveActivity.end()
-
         // 통계 스냅샷 갱신과 위젯 리로드는 recorder.finish → SessionStore.reload 가 한다.
-    }
-
-    // MARK: - §8.3 Live Activity
-
-    private func startLiveActivity() {
-        guard let running = engine.running, let endDate = engine.expectedEndDate else { return }
-        liveActivity.start(
-            plannedMinutes: engine.plannedMinutes,
-            startDate: running.startAt,
-            endDate: endDate
-        )
-    }
-
-    /// 일시정지·재개로 종료 시각이 바뀌면 갱신한다.
-    private func updateLiveActivity(pausedRemainingSeconds: Int?) {
-        guard let running = engine.running else { return }
-        // 멈춰 있을 때는 expectedEndDate 가 없을 수 있다. 그 경우 시작 시각만으로
-        // 범위를 만들 수 없으므로 얼어붙은 값만 넘기고 링은 정지 상태로 그린다.
-        let endDate = engine.expectedEndDate ?? running.startAt
-        liveActivity.update(
-            startDate: running.startAt,
-            endDate: endDate,
-            pausedRemainingSeconds: pausedRemainingSeconds
-        )
     }
 
     /// §5 — 상태가 바뀔 때마다 저장한다. 전이 사이에는 값이 변하지 않으므로 이걸로 충분하다.
