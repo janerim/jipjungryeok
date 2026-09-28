@@ -27,8 +27,13 @@ public enum PaletteTheme: String, CaseIterable, Codable, Sendable {
     }
 
     /// Asset Catalog 의 Color Set 이름 앞에 붙는다 (`paperBackground` 등).
+    ///
+    /// `dropFirst()` 를 `String(...)` 으로 감싸는 이유: 감싸지 않으면 Swift 6.1
+    /// (Xcode 16) 이 `Collection.dropFirst()`(→`Substring`) 가 아니라
+    /// `Sequence.dropFirst()`(→`DropFirstSequence<String>`) 를 골라서 `+` 가 막힌다.
+    /// 최신 툴체인은 알아서 풀지만, 이 브랜치는 Xcode 16 으로 빌드한다.
     func assetName(_ token: String) -> String {
-        rawValue + token.prefix(1).uppercased() + token.dropFirst()
+        rawValue + token.prefix(1).uppercased() + String(token.dropFirst())
     }
 }
 
