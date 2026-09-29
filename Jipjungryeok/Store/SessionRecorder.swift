@@ -76,16 +76,28 @@ final class SessionRecorder: ObservableObject {
             return
         }
 
-        // 앱을 다시 열어 되살린 회고는 늘리지 않는다. 언제 끝났는지와 지금이
-        // 얼마나 떨어져 있는지 알 수 없다.
-        canExtendPrompt = false
-
         guard let pending = PendingMemoStore.load() else {
+            canExtendPrompt = false
             memoPrompt = nil
             return
         }
 
-        guard now.timeIntervalSince(pending.finishedAt) <= Self.memoPromptWindow else {
+        let isFresh = now.timeIntervalSince(pending.finishedAt) <= Self.memoPromptWindow
+
+        // 같은 회고가 이미 떠 있으면 손대지 않는다. 화면을 껐다 켜거나 제어 센터를
+        // 내렸다 올려도 포그라운드 복귀로 여기에 오는데, 그때 연장을 끄면 시트를 띄운 채
+        // 계속 일하던 시간이 사라진다(§6-7). 실제로 세션이 끝나고 자동 잠금으로 화면이
+        // 꺼졌다가 켜는 순간 제목이 `N분 집중 완료` 로 바뀌었다. 자리를 비운 경우는
+        // 90분 상한(`SessionExtension`)이 막는다.
+        //
+        // `memoPrompt` 는 메모리에만 있으므로, 앱을 새로 띄워 되살린 회고는 여기 걸리지 않는다.
+        if isFresh, memoPrompt?.id == pending.sessionID { return }
+
+        // 앱을 다시 열어 되살린 회고는 늘리지 않는다. 언제 끝났는지와 지금이
+        // 얼마나 떨어져 있는지 알 수 없다.
+        canExtendPrompt = false
+
+        guard isFresh else {
             // 너무 오래됐다. 묻지 않고 확정만 한다.
             finalizeMemoPrompt(memo: nil)
             return
