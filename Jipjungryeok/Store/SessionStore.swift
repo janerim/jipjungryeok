@@ -51,6 +51,32 @@ final class SessionStore: ObservableObject {
         reload()
     }
 
+    /// §4.3 다른 폰에서 내보낸 기록을 합친다. 실제로 넣은 개수를 돌려준다.
+    ///
+    /// 이미 있는 세션은 건드리지 않는다 — 규칙은 `SessionArchive.newSessions` 에 있다.
+    /// `save(_:)` 를 쓰지 않는 이유: 그건 같은 id 를 덮어쓰고, 한 건마다 통계·위젯을
+    /// 다시 계산한다. 수백 건을 가져오면 위젯 리로드만 수백 번이 된다.
+    ///
+    /// **캘린더에는 쓰지 않는다.** 내보낸 폰이 이미 기록했으므로 여기서 또 쓰면 같은
+    /// 일정이 두 번 생긴다. 그래서 `SessionRecorder` 를 거치지 않고 저장소에 바로 넣는다.
+    func importSessions(from archive: SessionArchive) -> Int {
+        let existingIDs = Set(allRecords().map(\.id))
+        let fresh = archive.newSessions(excluding: existingIDs)
+        guard !fresh.isEmpty else { return 0 }
+
+        for record in fresh {
+            _ = FocusSession(record: record, context: context)
+        }
+        persist()
+        reload()
+        return fresh.count
+    }
+
+    /// §4.3 내보내기. 끝난 세션 전부를 담는다.
+    func exportArchive(now: Date = .now) -> SessionArchive {
+        SessionArchive(sessions: allRecords(), exportedAt: now)
+    }
+
     /// §7 캘린더 기록에 성공하면 이벤트 식별자를 세션에 붙인다.
     ///
     /// 통계는 달라지지 않으므로 `reload()` 를 하지 않는다.

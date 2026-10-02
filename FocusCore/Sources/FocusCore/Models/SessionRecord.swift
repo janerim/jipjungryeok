@@ -8,7 +8,11 @@ import Foundation
 ///
 /// `FocusSession` 대비 빠진 필드는 `calendarEventID` 하나뿐이고, 그건 저장 이후
 /// 캘린더 기록(§7)이 성공해야 채워지는 값이라 엔진의 관심사가 아니다.
-public struct SessionRecord: Equatable, Identifiable, Sendable {
+///
+/// `Codable` 은 기록 내보내기 파일(`SessionArchive`, §4.3) 때문이다. **필드 이름이 곧
+/// 파일 형식이다** — 이름을 바꾸면 이미 내보낸 파일을 못 읽는다. `SessionArchiveTests` 의
+/// 고정 JSON 테스트가 그걸 잡는다.
+public struct SessionRecord: Equatable, Identifiable, Sendable, Codable {
 
     public let id: UUID
 
