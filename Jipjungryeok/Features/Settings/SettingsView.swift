@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import FocusCore
 
 /// §4.3 설정 화면 — 타이머에서 오른쪽으로 스와이프.
@@ -21,6 +22,8 @@ struct SettingsView: View {
     @State private var scrolledMinutes: Int?
     @State private var showsFirstResetConfirm = false
     @State private var showsSecondResetConfirm = false
+    @State private var showsImporter = false
+    @State private var transferAlert: TransferAlert?
 
     var body: some View {
         ScrollView {
@@ -46,6 +49,7 @@ struct SettingsView: View {
                     calendarPickerRow
                 }
                 themeRow
+                transferRow
                 resetRow
                 versionRow
             }
@@ -376,6 +380,114 @@ struct SettingsView: View {
         }
     }
 
+    /// §4.3 다른 iPhone 으로 기록을 옮긴다.
+    ///
+    /// 클라우드 동기화는 만들지 않기로 했으므로(§3) 사용자가 파일을 직접 옮긴다 —
+    /// 한쪽에서 내보내 AirDrop 으로 보내고, 받은 쪽에서 "파일" 에 저장한 뒤 가져온다.
+    /// 두 버튼을 한 카드에 두는 이유는 보내는 쪽과 받는 쪽이 짝이라는 것이 한눈에 읽혀야 해서다.
+    ///
+    /// 알림과 파일 선택기를 이 카드에 단다. 화면 맨 바깥에는 초기화 확인 알림이 이미
+    /// 둘 붙어 있다. 한 뷰에 sheet 를 둘 붙이면 하나만 살아남는 사고(§4.4, `RootView`)를
+    /// 같은 이유로 피해 간다.
+    private var transferRow: some View {
+        card {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("기록 옮기기")
+                        .foregroundStyle(Palette.ink)
+                    Text("다른 iPhone 에서 내보낸 파일을 가져오면 기록이 합쳐집니다. 이미 있는 세션은 그대로 둡니다.")
+                        .font(Typography.statCaption)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 10) {
+                    Button("내보내기", action: exportSessions)
+                        .font(Typography.statCaption)
+                        .filledButton()
+                    Button("가져오기") { showsImporter = true }
+                        .font(Typography.statCaption)
+                        .filledButton()
+                }
+            }
+        }
+        .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.json]) { result in
+            importSessions(result)
+        }
+        .alert(
+            transferAlert?.title ?? "",
+            isPresented: Binding(
+                get: { transferAlert != nil },
+                set: { if !$0 { transferAlert = nil } }
+            ),
+            presenting: transferAlert
+        ) { _ in
+            Button("확인", role: .cancel) {}
+        } message: { alert in
+            Text(alert.message)
+        }
+    }
+
+    private func exportSessions() {
+        let archive = recorder.store.exportArchive()
+        guard !archive.sessions.isEmpty else {
+            transferAlert = TransferAlert(
+                title: "내보낼 기록이 없습니다",
+                message: "세션을 하나 끝내면 내보낼 수 있습니다."
+            )
+            return
+        }
+
+        do {
+            // 임시 폴더에 쓴다. 공유가 끝나면 필요 없는 파일이고, 시스템이 알아서 치운다.
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent(archive.suggestedFileName())
+            try archive.encoded().write(to: url, options: .atomic)
+            ShareSheet.present(url)
+        } catch {
+            transferAlert = TransferAlert(title: "내보내지 못했습니다", message: error.localizedDescription)
+        }
+    }
+
+    private func importSessions(_ result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            // "파일" 앱에서 고른 파일은 앱 샌드박스 밖이라 접근을 열어야 읽힌다.
+            // 열었으면 반드시 닫는다 — Apple 문서상 안 닫으면 커널 자원이 새고, 쌓이면
+            // 앱을 다시 켤 때까지 다른 파일도 열지 못한다.
+            let isAccessing = url.startAccessingSecurityScopedResource()
+            defer { if isAccessing { url.stopAccessingSecurityScopedResource() } }
+
+            let archive = try SessionArchive.decode(Data(contentsOf: url))
+            let added = recorder.store.importSessions(from: archive)
+            let skipped = archive.sessions.count - added
+
+            if added == 0 {
+                transferAlert = TransferAlert(
+                    title: "새 기록이 없습니다",
+                    message: "파일에 있는 \(skipped)건이 모두 이미 있습니다."
+                )
+            } else {
+                transferAlert = TransferAlert(
+                    title: "기록을 가져왔습니다",
+                    message: skipped == 0
+                        ? "\(added)건을 가져왔습니다."
+                        : "\(added)건을 가져왔습니다. \(skipped)건은 이미 있어서 건너뛰었습니다."
+                )
+            }
+        } catch SessionArchive.ReadError.unsupportedVersion {
+            transferAlert = TransferAlert(
+                title: "가져오지 못했습니다",
+                message: "더 새 버전의 집중력에서 만든 파일입니다. 앱을 업데이트한 뒤 다시 가져와 주세요."
+            )
+        } catch {
+            transferAlert = TransferAlert(
+                title: "가져오지 못했습니다",
+                message: "집중력에서 내보낸 기록 파일이 아닙니다."
+            )
+        }
+    }
+
     private var resetRow: some View {
         card {
             Button {
@@ -429,6 +541,38 @@ struct SettingsView: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "0.0.0"
         let build = info?["CFBundleVersion"] as? String ?? "0"
         return "\(short) (\(build))"
+    }
+}
+
+/// 기록 옮기기 결과 알림.
+private struct TransferAlert {
+    let title: String
+    let message: String
+}
+
+/// UIKit 공유 시트를 맨 위 화면에 띄운다.
+///
+/// SwiftUI 의 `ShareLink` 를 쓰지 않는 이유: iOS 16 부터라 `ios15` 브랜치에서 쓸 수 없다.
+/// 두 브랜치의 코드를 같게 두려고 iOS 15 에서도 되는 길로 간다.
+/// `.sheet` 안에 `UIActivityViewController` 를 넣지 않는 이유: 공유 시트가 SwiftUI 시트 안에
+/// 한 겹 더 들어간다. 직접 띄우면 시스템 기본 모양 그대로 뜬다.
+private enum ShareSheet {
+
+    @MainActor
+    static func present(_ url: URL) {
+        guard let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }),
+              var top = scene.keyWindow?.rootViewController else { return }
+
+        // 이미 다른 화면이 떠 있으면 그 위에 띄워야 보인다. 아래에 띄우면 조용히 무시된다.
+        while let presented = top.presentedViewController {
+            top = presented
+        }
+        top.present(
+            UIActivityViewController(activityItems: [url], applicationActivities: nil),
+            animated: true
+        )
     }
 }
 
