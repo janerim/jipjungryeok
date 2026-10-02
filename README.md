@@ -5,6 +5,8 @@
 기획 전문은 [docs/spec.md](docs/spec.md).
 **Mac 에서 처음 빌드한다면 [docs/mac-first-build.md](docs/mac-first-build.md) 부터 볼 것.**
 
+> ▶ **Windows 에서 작성한 변경을 Mac 에서 받았다면 [NEXT.md](NEXT.md) 부터.** 지금 해야 할 일이 순서대로 있다.
+
 ---
 
 ## 현재 상태
