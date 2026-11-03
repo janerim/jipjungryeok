@@ -11,6 +11,9 @@
 | jipjungryeok `main` | `eb43c95` | 스토어 문구 — 공통 문장, 광고·계정 약속 빼기 |
 | jipjungryeok `main` | `1809476` | 앱 아이콘 교체 (라이트·다크). 틀과 색 값은 [spec §10](docs/spec.md) "앱 아이콘" |
 | chaekryeok `main` | `af212fd` | iOS 앱 아이콘 (라이트·다크), `app.json` 의 `ios.icon` 으로 연결 |
+| gagyeryeok `main` | `03daef0` | iOS 앱 아이콘 (지갑 + 지폐), 책력과 같은 방식으로 `ios.icon` 연결 |
+| sosikryeok `main` | `9075dba` | 앱 아이콘 (종 + 알림 배지) 두 장만. 앱 설정이 아직 없어 연결하지 않았다 |
+| jipjungryeok `main` | (이 파일과 같은 커밋) | spec §10 에 가계력·소식력 아이콘 값 |
 
 `ios15` 브랜치에는 넣지 않았다. 6s 는 옛 아이콘 그대로다.
 
@@ -63,6 +66,7 @@ npm run ios                                # expo run:ios → 시뮬레이터
 - [ ] 생성된 `ios/*/Images.xcassets/AppIcon.appiconset/Contents.json` 에 dark 항목이 있다
 - [ ] 시뮬레이터 홈 화면에서 라이트·다크 아이콘이 둘 다 맞게 나온다
 - [ ] 집중력과 나란히 놓고 한 벌로 보인다
+- [ ] 가계력도 같은 방식이다 — 가계력을 시뮬레이터로 돌릴 때 홈 화면 아이콘(라이트·다크)도 본다
 - 스플래시는 옛 그림(`app-icon.png`) 그대로인 게 맞다. 아래 "남은 결정" 2번
 
 ## 3. App Store Connect — 빌드 없이 지금 할 수 있는 것
