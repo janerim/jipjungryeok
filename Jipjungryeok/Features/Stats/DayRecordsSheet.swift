@@ -102,7 +102,7 @@ struct DayRecordsSheet: View {
     }
 
     private var list: some View {
-        ScrollView(showsIndicators: false) {
+        ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(sessions) { session in
                     SessionRow(session: session) { editing = session }
@@ -112,6 +112,7 @@ struct DayRecordsSheet: View {
             .padding(.top, 18)
             .padding(.bottom, 40)
         }
+        .scrollIndicators(.hidden)
     }
 }
 

@@ -15,6 +15,8 @@ struct MonthCalendarView: View {
     /// 뒤로 넘길 수 있는 한계. 기록이 시작된 달이다.
     let earliestMonth: Date?
     let onShiftMonth: (Int) -> Void
+    /// 이번 달로 되돌아간다. 몇 달을 거슬러 간 뒤 화살표로 되짚어 오는 것은 성가시다.
+    let onGoToday: () -> Void
     let onSelectDay: (CalendarDay) -> Void
 
     private let calendar = Calendar.focus
@@ -66,6 +68,18 @@ struct MonthCalendarView: View {
                 .frame(maxWidth: .infinity)
                 // 달을 넘길 때 글자가 밀리지 않게 한 줄로 못박는다.
                 .lineLimit(1)
+
+            // "오늘" 은 이번 달을 벗어났을 때만 나온다. 늘 떠 있으면 머리줄이 붐비고,
+            // 이번 달에서는 누를 일이 없는 버튼이다.
+            if canGoForward {
+                Button("오늘", action: onGoToday)
+                    .font(Typography.statCaption)
+                    .foregroundStyle(Palette.accent)
+                    .padding(.horizontal, 6)
+                    .frame(height: 32)
+                    .contentShape(Rectangle())
+                    .pressable()
+            }
 
             arrow(systemName: "chevron.right", enabled: canGoForward, label: "다음 달") {
                 onShiftMonth(1)
@@ -237,6 +251,7 @@ struct MonthCalendarView: View {
             grid: MonthCalendar.grid(for: now, sessions: sessions, calendar: calendar),
             earliestMonth: MonthCalendar.earliestMonth(in: sessions, calendar: calendar),
             onShiftMonth: { _ in },
+            onGoToday: {},
             onSelectDay: { _ in }
         )
         .padding(.horizontal, 20)
