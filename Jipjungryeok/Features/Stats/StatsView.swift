@@ -3,12 +3,12 @@ import FocusCore
 
 /// §4.2 통계 화면 — 세로 스크롤 단일 화면.
 ///
-/// 위에서부터 오늘 링 / 이번 주 7칸 / 최근 기록.
+/// 위에서부터 오늘 링 / 이번 주 7칸 / 달력.
 ///
-/// 지표를 오늘과 이번 주 둘로 줄였다. 이전에는 오늘·이번 주·이번 달·최근 7일·
-/// 최근 28일 다섯 칸이 있었는데, "이번 주" 와 "최근 7일" 은 사실상 같은 질문에
-/// 답하면서 정의만 달랐다. 숫자를 늘어놓는 것과 알려주는 것은 다르다.
-/// 더 긴 기간이 궁금하면 기록 화면에서 날짜별로 훑는다.
+/// 셋이 서로 다른 질문에 답한다. 링은 **오늘 얼마나**, 주간 막대는 **이번 주 얼마나**,
+/// 달력은 **이번 달 며칠 나왔나** 다. 달력 자리에는 최근 세션 5건이 있었는데,
+/// 그건 한 탭 거리의 기록 시트를 잘라 놓은 것이라 자리값을 못 했다.
+/// 달력은 그 자리에서 다른 질문에 답하고, 날짜를 눌러 그날로 들어가는 문도 된다.
 struct StatsView: View {
 
     @ObservedObject var store: SessionStore
@@ -16,11 +16,15 @@ struct StatsView: View {
     /// 메모 수정(§4.2-3)은 캘린더 notes 까지 건드리므로 레코더를 거친다.
     let recorder: SessionRecorder
 
+    /// 달력이 쓰는 전체 기록. 화면에 들어올 때 한 번 읽는다 —
+    /// 달을 넘길 때마다 스토어를 치지 않으려는 것이고, 세션은 수천 건이어도 가볍다.
+    @State private var records: [SessionRecord] = []
+    @State private var month: Date = MonthCalendar.month(containing: .now)
+    @State private var selectedDay: DaySelection?
     @State private var showsHistory = false
-    @State private var editing: SessionRecord?
 
     /// §4.4 와 같은 이유로 시트를 두 층에 나눠 단다. 한 뷰에 `sheet` 를 두 개 붙이면
-    /// 나중 것만 살아남아서, 기록 시트를 달면 메모 수정 시트가 조용히 죽는다.
+    /// 나중 것만 살아남아서, 기록 시트를 달면 그날 시트가 조용히 죽는다.
     var body: some View {
         content
             .sheet(isPresented: $showsHistory) {
@@ -40,7 +44,12 @@ struct StatsView: View {
                 }
 
                 section("기록", accessory: historyButton) {
-                    recentSessions
+                    MonthCalendarView(
+                        grid: grid,
+                        earliestMonth: MonthCalendar.earliestMonth(in: records),
+                        onShiftMonth: { month = MonthCalendar.shift(month, by: $0) },
+                        onSelectDay: { selectedDay = DaySelection(date: $0.date) }
+                    )
                 }
             }
             .padding(.horizontal, 20)
@@ -48,16 +57,21 @@ struct StatsView: View {
             // 하단 페이지 인디케이터에 가리지 않게 띄운다
             .padding(.bottom, 44)
         }
-        .onAppear {
-            // 자정을 넘겼거나 다른 화면에서 세션이 끝났을 수 있다.
-            store.reload()
+        .onAppear(perform: reload)
+        .sheet(item: $selectedDay, onDismiss: reload) { selection in
+            DayRecordsSheet(date: selection.date, store: store, recorder: recorder)
         }
-        .sheet(item: $editing) { session in
-            MemoEditSheet(session: session) { memo in
-                // `store.setMemo` 안에서 `reload()` 까지 하므로 목록이 바로 바뀐다.
-                recorder.updateMemo(memo, for: session.id)
-            }
-        }
+    }
+
+    /// 자정을 넘겼거나 다른 화면에서 세션이 끝났을 수 있다.
+    /// 그날 시트에서 메모를 고치고 돌아왔을 수도 있다.
+    private func reload() {
+        store.reload()
+        records = store.allRecords()
+    }
+
+    private var grid: MonthGrid {
+        MonthCalendar.grid(for: month, sessions: records)
     }
 
     private var weekTotal: some View {
@@ -67,35 +81,8 @@ struct StatsView: View {
             .monospacedDigit()
     }
 
-    /// §12 — 세션 0건이어도 크래시 없이 빈 상태가 그려져야 한다.
-    @ViewBuilder
-    private var recentSessions: some View {
-        if store.recent.isEmpty {
-            Text("아직 기록이 없습니다")
-                .font(Typography.statCaption)
-                .foregroundStyle(Palette.inkSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 8)
-        } else {
-            // 날짜 없이 시각만 늘어놓으면 14:05 다음에 16:22 가 와서 순서가 틀린 줄 안다.
-            // 기록 시트와 같은 묶기를 쓰되, 여기서는 회수·합계 없이 라벨만 얹는다.
-            VStack(alignment: .leading, spacing: 18) {
-                ForEach(SessionHistory.byDay(store.recent)) { day in
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(TimeDisplay.relativeDay(day.date))
-                            .font(Typography.statCaption)
-                            .foregroundStyle(Palette.inkSecondary)
-
-                        ForEach(day.sessions) { session in
-                            SessionRow(session: session) { editing = session }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// 최근 몇 건 너머를 보려면 여기로 들어간다 (§4.2-3).
+    /// 달력은 한 달씩 보여준다. 날짜를 가로질러 메모를 훑고 싶을 때는 여기로 간다 (§4.2-3).
+    /// 둘은 다른 질문에 답하므로 달력이 생겨도 이 문은 남긴다.
     private var historyButton: some View {
         Button {
             showsHistory = true
@@ -131,6 +118,12 @@ struct StatsView: View {
             content()
         }
     }
+}
+
+/// `sheet(item:)` 이 Identifiable 을 요구해서 감싸는 값. 날짜가 곧 신원이다.
+private struct DaySelection: Identifiable {
+    let date: Date
+    var id: Date { date }
 }
 
 #Preview {
