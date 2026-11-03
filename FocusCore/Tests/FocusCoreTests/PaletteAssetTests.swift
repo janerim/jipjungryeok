@@ -108,7 +108,42 @@ final class PaletteAssetTests: XCTestCase {
         }
     }
 
+    /// §4.2-3 달력 칸은 농도 위에 날짜 숫자를 그대로 올린다.
+    /// **가장 짙은 칸에서도** 숫자가 본문 기준으로 읽혀야 한다.
+    ///
+    /// 숫자 색을 뒤집는 방법으로는 풀리지 않는다 — 중간 농도에서는 잉크도 배경색도
+    /// 기준에 못 미친다. 그래서 농도에 상한을 두는 것이고, 색을 손보면 여기서 걸린다.
+    func testCalendarFillKeepsDayNumberReadable() throws {
+        for theme in PaletteTheme.allCases {
+            for appearance in ["light", "dark"] {
+                let background = try rgb(theme: theme, token: "background", appearance: appearance)
+                let ink = try rgb(theme: theme, token: "ink", appearance: appearance)
+                let filled = Self.blend(ink, over: background, alpha: Metrics.calendarMaxFill)
+                let ratio = Self.contrastRatio(filled, ink)
+
+                XCTAssertGreaterThanOrEqual(
+                    ratio, 4.5,
+                    "\(theme.rawValue)/\(appearance) 에서 가장 짙은 달력 칸의 날짜 대비가 \(String(format: "%.1f", ratio)):1 입니다. Metrics.calendarMaxFill 을 낮추세요."
+                )
+            }
+        }
+    }
+
     // MARK: - 읽기 도구
+
+    /// 투명도 `alpha` 로 `foreground` 를 `background` 위에 올렸을 때의 색.
+    private static func blend(
+        _ foreground: (Double, Double, Double),
+        over background: (Double, Double, Double),
+        alpha: Double
+    ) -> (Double, Double, Double) {
+        (
+            foreground.0 * alpha + background.0 * (1 - alpha),
+            foreground.1 * alpha + background.1 * (1 - alpha),
+            foreground.2 * alpha + background.2 * (1 - alpha)
+        )
+    }
+
 
     private func colorEntries(theme: PaletteTheme, token: String) throws -> [[String: Any]] {
         let data = try Data(contentsOf: contentsURL(theme: theme, token: token))
