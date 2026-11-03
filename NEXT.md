@@ -1,101 +1,128 @@
 # 다음에 Mac 에서 할 일
 
-> 2026-10-02 Windows 에서 작성. **아래 코드는 아직 한 번도 컴파일하지 않았다.**
-> 할 일이 끝나면 이 파일을 지우거나 다음 할 일로 바꾼다.
+> 2026-11-03 Windows 에서 작성. 이전 판(1.3 업로드 순서)은 끝났다 — 1.3 은 10월 7일 스토어에 나갔다.
+> 이번 판은 **책력·집중력을 "력 시리즈" 로 맞추는 일**이고, 두 저장소에 걸쳐 있다.
+> **아무것도 빌드해 보지 않았다.** 할 일이 끝나면 이 파일을 지우거나 다음 할 일로 바꾼다.
 
 ## 들어온 것
 
-| 브랜치 | 커밋 | 내용 |
+| 저장소 | 커밋 | 내용 |
 |---|---|---|
-| `main` · `ios15` | `594fef2` · `a4f2af6` | 회고 시트가 떠 있을 때 화면을 껐다 켜도 연장이 유지되게 (§6-7) |
-| `main` · `ios15` | `9c92a80` · `8a1a150` | **1.3** — 설정 > 기록 옮기기 [내보내기] [가져오기] (§4.3), 버전 1.3 (4) |
+| jipjungryeok `main` | `eb43c95` | 스토어 문구 — 공통 문장, 광고·계정 약속 빼기 |
+| jipjungryeok `main` | `1809476` | 앱 아이콘 교체 (라이트·다크). 틀과 색 값은 [spec §10](docs/spec.md) "앱 아이콘" |
+| chaekryeok `main` | `af212fd` | iOS 앱 아이콘 (라이트·다크), `app.json` 의 `ios.icon` 으로 연결 |
 
-두 브랜치의 코드는 같다. `ios15` 는 저장소 줄 하나만 Core Data 문법이다.
+`ios15` 브랜치에는 넣지 않았다. 6s 는 옛 아이콘 그대로다.
+
+아이콘 PNG 는 SVG 를 Chrome 으로 렌더한 뒤 24bit PNG(1024², 알파 없음)로 저장했다.
+SVG 원본은 저장소에 두지 않는다(§10) — 다시 그려야 하면 §10 의 값에서 출발한다.
+
+### 이번에 정한 것
+
+- **메인 화면은 달력으로 바꾸지 않는다.** 책력(冊曆)의 력은 달력이지만 집중력의 력은 力이고,
+  앱을 여는 이유가 "바로 시작" 이다. 시리즈의 공통점은 화면 안이 아니라 **아이콘과 스토어 문구**에서 낸다
+- **아이콘 틀 "종이와 잉크"**: `paper` 크림 바탕 + 잉크색 상징 하나 + 앱마다 포인트 색 하나, 글자 없음.
+  이전 집중력 아이콘은 "밝은 아이콘은 홈 화면에서 묻힌다" 는 이유로 어두운 바탕이었다(`6272ebf`).
+  그걸 알고 뒤집었다 — 1번에서 눈으로 확인할 것
+- **공통 문장**: "하루하루가 쌓여 기록이 됩니다." 계정·광고 없음은 내세우지 않는다.
+  나중에 수익 모델을 붙이면 거짓이 되는 약속이다
+- **개발자 이름**은 개인 계정이라 법적 이름(`jeongrim oh`)으로 고정이다. 번들 ID 와는 관계없다.
+  두 앱은 이미 같은 개발자로 묶여 스토어의 "다른 앱" 에 서로 뜬다
+
+---
+
+## 1. 집중력 — 받기 + 아이콘 확인
+
+```bash
+cd jipjungryeok
+git switch main && git pull
+(cd FocusCore && swift test)     # 코드는 안 바뀌었다. 습관대로
+xcodegen generate
+open Jipjungryeok.xcodeproj      # iPhone 17 시뮬레이터 → ⌘R
+```
+
+> 실기기 iPhone 17 에는 깔지 않는다. 진짜 기록이 든 스토어판이 있다.
+
+- [ ] 홈 화면 아이콘이 크림 바탕 + 잉크 다이얼 + 주황 핸들이다
+- [ ] 홈 화면 길게 누르기 > 편집 > 사용자화 > **어둡게** 에서 짙은 바탕 + 크림 다이얼로 바뀐다
+- [ ] **밝은 배경화면에서 묻히지 않는다.** 이전 결정을 뒤집은 지점이라 꼭 본다.
+      묻히면 "반전안"(라이트에서도 짙은 바탕)으로 돌아가는 선택지가 있다 — 시안 캔버스의 "(가) 반전"
+
+## 2. 책력 — 받기 + 아이콘 확인
+
+```bash
+cd chaekryeok
+git pull
+npm install
+npx expo prebuild --clean --platform ios   # ios/ 는 커밋하지 않는 생성물이라 지워도 된다
+npm run ios                                # expo run:ios → 시뮬레이터
+```
+
+- [ ] prebuild 가 `ios.icon` 의 `{ light, dark }` 객체를 받아들인다.
+      Expo 문서상 SDK 54 에서 지원하지만 **이 저장소에서는 처음 쓴다.** 에러가 나면 원문을 가져온다
+- [ ] 생성된 `ios/*/Images.xcassets/AppIcon.appiconset/Contents.json` 에 dark 항목이 있다
+- [ ] 시뮬레이터 홈 화면에서 라이트·다크 아이콘이 둘 다 맞게 나온다
+- [ ] 집중력과 나란히 놓고 한 벌로 보인다
+- 스플래시는 옛 그림(`app-icon.png`) 그대로인 게 맞다. 아래 "남은 결정" 2번
+
+## 3. App Store Connect — 빌드 없이 지금 할 수 있는 것
+
+프로모션 텍스트는 새 버전 없이 바로 바뀐다.
+
+- [ ] 집중력 프로모션 텍스트 ← [docs/appstore-metadata.md](docs/appstore-metadata.md) 프로모션 블록 그대로
+- [ ] 책력 프로모션 텍스트에 "하루하루가 쌓여 기록이 됩니다." 를 넣는다.
+      책력 저장소에는 스토어 문구 문서가 없어서 직접 넣는다
+
+## 4. 다음 버전에 실어 보내기
+
+아이콘·설명·부제는 새 버전을 제출할 때만 바뀐다.
+
+**집중력 1.4** — CLAUDE.md "새 버전 낼 때" 순서대로
+
+- [ ] `project.yml` 의 `MARKETING_VERSION` 1.4 / `CURRENT_PROJECT_VERSION` 5 (지금 1.3 / 4, 두 타깃 다)
+- [ ] `ReleaseNotes.swift` — 아이콘만 바뀐 릴리즈면 비워 둘지 정한다(비우면 앱 안 업데이트 안내가 안 뜬다)
+- [ ] [docs/appstore-metadata.md](docs/appstore-metadata.md) — "이번 버전의 새로운 기능" 1.4 블록,
+      "버전" 줄(아직 `1.2` 로 남아 있다)
+- [ ] App Store Connect 설명 ← 문서의 설명 블록 통째로 (이번에 바뀌었다)
+- [ ] `swift test` → archive → Organizer 업로드
+
+**책력 1.0.4**
+
+- [ ] `app.json`·`package.json` 의 `version` 1.0.4 (빌드 번호는 EAS 가 원격으로 올린다)
+- [ ] `RELEASE_NOTES.md` 에 1.0.4
+- [ ] `eas build --profile production --platform ios` → `eas submit --profile production --platform ios`
+
+## 5. 이전 판에서 넘어온 것
+
+1.3 이 나간 뒤 실기기끼리 해 보기로 한 확인이다. 했다면 지운다.
+
+- [ ] iPhone 17 → 6s, 6s → iPhone 17 양쪽으로 기록 내보내기·가져오기, 두 폰 통계가 같아지는지
 
 ---
 
-## 1. 받기 + 테스트 (두 브랜치 다)
+## 남은 결정
 
-```bash
-git fetch
-git switch main  && git pull && (cd FocusCore && swift test)
-git switch ios15 && git pull && (cd FocusCore && swift test)
-```
+1. **부제** — 두 앱 다 비어 있다. 예: 책력 "나만의 독서 달력" / 집중력 "나만의 집중 타이머"
+2. **책력의 나머지 아이콘** — 스플래시·Android 적응형 아이콘·웹 파비콘은 옛 `app-icon.png` 다.
+   Android 로 출시했는지에 따라 맞출지 정한다
+3. **틴트 아이콘**(iOS 18+) — 두 앱 다 없다
+4. **`ios15` 브랜치**(6s)에도 새 아이콘을 넣을지
+5. **집중력 1.4** 를 아이콘만으로 낼지, 다음 기능과 묶을지
 
-- 새 테스트 `SessionArchiveTests` 12개가 늘었다. 둘 다 전부 통과해야 한다.
-- `ios15` 는 macOS 12 기준으로 빌드하므로, iOS 16+ API 를 썼다면 여기서 걸린다.
-- **실패하면 여기서 멈추고** 에러 원문을 가져온다.
+## 발견만 하고 손대지 않은 것
 
-## 2. 6s — `ios15` 설치
+- [docs/appstore-metadata.md](docs/appstore-metadata.md) "저작권" 줄은 `2026 오정림` 인데,
+  스토어에는 두 앱 다 `© 2026 ryubi` 로 나간다. 문서를 스토어에 맞출지
+- 두 앱 다 스토어 "언어" 가 **영어** 로 나온다(한국어 앱인데). 원인 미확인 — 개발 지역이 en 일 가능성
+- spec §1-1 "로마자는 책력(`chaekryeok`)과 같은 철자 기반" — 책력의 실제 식별자는 `chaengnyeok`(발음 기반)이다
 
-```bash
-git switch ios15
-./scripts/install-ios15.sh      # 6s 를 USB 로 연결하고 잠금 해제한 상태에서
-```
+## 참고
 
-6s 에서 확인할 것:
-
-- [ ] 앱을 열면 "새로워진 점 · 버전 1.3" 시트가 뜬다
-- [ ] **연장 고침**: 1분 세션을 끝까지 → `1분 집중 중` 시트 → 옆 버튼으로 화면 껐다 켜기
-      → 문구가 `저장을 누르면 여기까지 기록됩니다` 그대로다 (전에는 종료 시각으로 바뀌었다)
-- [ ] 설정 > 기록 옮기기 > **내보내기** → 공유 시트 → **AirDrop 으로 이 Mac** 에 보낸다
-      → `~/Downloads/jipjungryeok-YYYYMMDD.json` 이 생긴다 (3번에서 쓴다)
-
-## 3. iPhone 17 쪽 — `main` 을 **시뮬레이터**로 확인
-
-> **실기기 iPhone 17 에는 깔지 말 것.** 진짜 기록이 든 스토어판이 있다. 그 위에 개발 빌드를
-> 덮었을 때 기록이 남는지는 확인된 적이 없다. 1.3 이 스토어로 나간 뒤 업데이트로 받는다.
-
-```bash
-git switch main
-xcodegen generate
-open Jipjungryeok.xcodeproj     # iPhone 17 시뮬레이터 선택 → ⌘R
-```
-
-- [ ] 시뮬레이터에서 세션을 하나 끝내 둔다 (기록이 섞이는 것을 보려고)
-- [ ] 2번에서 받은 json 을 **시뮬레이터 창에 끌어다 놓아** "파일" 에 넣는다
-      ⚠️ 이 방법은 확인하지 않았다. 안 되면 시뮬레이터 안에서 내보내기 → "파일에 저장" →
-      그 파일을 가져오기로 대신한다. 자기 기록이라 전부 "새 기록이 없습니다" 가 나와야 정상이다
-- [ ] 설정 > 기록 옮기기 > **가져오기** → 그 파일 → "N건을 가져왔습니다"
-- [ ] 통계(오늘 링·이번 주)와 기록 시트에 6s 세션이 보이고, 시뮬레이터 세션도 그대로 있다
-- [ ] **같은 파일을 한 번 더** 가져오면 "새 기록이 없습니다", 통계가 늘지 않는다
-- [ ] 캘린더 기록을 켠 상태에서 가져와도 **캘린더에 일정이 새로 생기지 않는다**
-- [ ] 이 앱이 만들지 않은 json 을 고르면 "집중력에서 내보낸 기록 파일이 아닙니다", 기록은 그대로
-
-나머지 항목은 [docs/mac-first-build.md](docs/mac-first-build.md) 의 "기록 옮기기 (1.3, §4.3)".
-
-## 4. 1.3 스토어 업로드 (`main`)
-
-버전(1.3 / 빌드 4), `ReleaseNotes`, 스토어 문구는 **이미 고쳐 두었다.** CLAUDE.md "새 버전 낼 때" 의 4단계만 남았다.
-
-```bash
-git switch main
-(cd FocusCore && swift test)
-xcodegen generate
-open Jipjungryeok.xcodeproj     # Product > Archive → Organizer 에서 업로드
-```
-
-- App Store Connect "이번 버전의 새로운 기능" 에는
-  [docs/appstore-metadata.md](docs/appstore-metadata.md) 의 1.3 블록을 그대로 붙인다.
-- 개인정보 처리방침에 "기록 내보내기" 절을 추가했다([docs/privacy.md](docs/privacy.md)).
-  시행일은 **2026-10-06 으로 바꿨다.** 그 문서의 "방침 변경" 절이 내용이 바뀌면 시행일을
-  고치겠다고 약속하고 있고, 기기 밖으로 기록이 나가는 길이 새로 생긴 것은 실질적인 변경이다.
-  **라이브 페이지는 손댈 것이 없다.** 처리방침은 GitHub Pages 가 `main` 의 `/docs` 에서
-  자동으로 게시한다(`https://janerim.github.io/jipjungryeok/privacy`). 푸시하면 끝이다.
-  Notion 에 있는 것은 **지원 URL** 뿐이고 그건 손으로 고쳐야 한다 — 1.3 에서 바뀔 내용은 없다.
-- 앱 개인정보 표기는 "데이터를 수집하지 않음" 그대로다. 사용자가 직접 보내는 파일은 수집이 아니다.
-
-## 5. 1.3 이 iPhone 17 에 깔린 뒤
-
-- [ ] iPhone 17 에서 내보내기 → AirDrop → 6s 에서 "파일" 에 저장 → 가져오기 (반대 방향)
-- [ ] 6s → iPhone 17 방향도 한 번 더 (실기기끼리)
-- [ ] 두 폰의 통계가 같아졌는지
-
----
+- 아이콘 시안 캔버스: https://claude.ai/artifact/6CNkCVe7YnR6MjByYGmfDf
+  **다듬기 전 시안이다.** 최종본은 저장소의 PNG, 값은 spec §10
 
 ## 막혔을 때 가져올 것
 
 1. 어느 번호에서 멈췄는지
-2. 에러 원문 — `swift test`·`xcodebuild` 출력, 6s 는 `idevicesyslog -m Jipjungryeok`
-   ([docs/ios15-branch.md](docs/ios15-branch.md) 3장)
-3. 위 체크 항목 중 실패한 것
+2. 에러 원문 — `swift test`·`xcodebuild`·`expo prebuild` 출력
+3. 위 체크 항목 중 실패한 것, 아이콘이 이상하면 홈 화면 스크린샷
