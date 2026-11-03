@@ -153,4 +153,58 @@ final class SessionHistoryTests: XCTestCase {
 
         XCTAssertEqual(days[0].totalSeconds, 420)
     }
+
+    // MARK: - §4.2-3 달 묶기
+
+    func testEmptyInputProducesNoMonths() {
+        XCTAssertTrue(SessionHistory.byMonth([], calendar: calendar).isEmpty)
+    }
+
+    /// 최신 달이 먼저, 달 안에서도 최신 날짜가 먼저.
+    func testMonthsAreNewestFirst() {
+        let months = SessionHistory.byMonth(
+            [
+                record(startAt: date(2026, 9, 3, 9), seconds: 600),
+                record(startAt: date(2026, 11, 2, 9), seconds: 600),
+                record(startAt: date(2026, 11, 20, 9), seconds: 600),
+            ],
+            calendar: calendar
+        )
+
+        XCTAssertEqual(months.count, 2)
+        XCTAssertEqual(months[0].month, calendar.startOfDay(for: date(2026, 11, 1)))
+        XCTAssertEqual(months[1].month, calendar.startOfDay(for: date(2026, 9, 1)))
+        XCTAssertEqual(months[0].days.map(\.date), [
+            calendar.startOfDay(for: date(2026, 11, 20)),
+            calendar.startOfDay(for: date(2026, 11, 2)),
+        ])
+    }
+
+    /// 합계는 그 달 날짜 묶음에서 나온다.
+    func testMonthTotalsCoverEveryDayInIt() {
+        let months = SessionHistory.byMonth(
+            [
+                record(startAt: date(2026, 11, 2, 9), seconds: 600),
+                record(startAt: date(2026, 11, 2, 15), seconds: 900),
+                record(startAt: date(2026, 11, 5, 9), seconds: 1200),
+            ],
+            calendar: calendar
+        )
+
+        XCTAssertEqual(months[0].dayCount, 2)
+        XCTAssertEqual(months[0].sessionCount, 3)
+        XCTAssertEqual(months[0].totalSeconds, 2700)
+    }
+
+    /// §4.2 — 날짜 판정은 `startAt` 기준이다. 말일 23:50 에 시작해 다음 달로 넘어간
+    /// 세션도 **시작한 달**에 남는다.
+    func testSessionCrossingIntoNextMonthStaysInItsStartMonth() {
+        let months = SessionHistory.byMonth(
+            [record(startAt: date(2026, 10, 31, 23, 50), seconds: 1500)],
+            calendar: calendar
+        )
+
+        XCTAssertEqual(months.count, 1)
+        XCTAssertEqual(months[0].month, calendar.startOfDay(for: date(2026, 10, 1)))
+    }
 }

@@ -27,6 +27,36 @@ public struct HistoryDay: Equatable, Identifiable, Sendable {
     }
 }
 
+/// §4.2-3 기록 시트가 쓰는 한 달 묶음.
+///
+/// 날짜 묶음만으로는 기록이 쌓일수록 끝없이 이어진다. 달로 한 번 더 묶어
+/// 어디쯤 보고 있는지 알 수 있게 하고, 한 번에 보여줄 양도 달 단위로 끊는다.
+public struct HistoryMonth: Equatable, Identifiable, Sendable {
+
+    /// 그 달 1일 자정. 묶음의 신원이자 정렬 기준이다.
+    public let month: Date
+
+    /// 그 달의 날짜 묶음. 최신 날짜가 먼저 온다.
+    public let days: [HistoryDay]
+
+    public var id: Date { month }
+
+    public var dayCount: Int { days.count }
+
+    public var sessionCount: Int {
+        days.reduce(0) { $0 + $1.sessionCount }
+    }
+
+    public var totalSeconds: Int {
+        days.reduce(0) { $0 + $1.totalSeconds }
+    }
+
+    public init(month: Date, days: [HistoryDay]) {
+        self.month = month
+        self.days = days
+    }
+}
+
 /// §4.2 세션 이력을 날짜별로 묶는다.
 ///
 /// `StatsCalculator` 와 분리한 이유는 답하는 질문이 다르기 때문이다. 저쪽은 창(window)
@@ -58,5 +88,25 @@ public enum SessionHistory {
                 )
             }
             .sorted { $0.date > $1.date }
+    }
+
+    /// §4.2-3 날짜 묶음을 달로 한 번 더 묶는다. **최신 달이 먼저** 온다.
+    ///
+    /// `byDay` 의 결과를 다시 묶는다. 세션에서 바로 달을 계산하지 않는 이유는,
+    /// 날짜 판정 규칙(§4.2 `startAt` 기준)이 한 곳에만 있어야 하기 때문이다.
+    public static func byMonth(
+        _ sessions: [SessionRecord],
+        calendar: Calendar = .focus
+    ) -> [HistoryMonth] {
+        let grouped = Dictionary(grouping: byDay(sessions, calendar: calendar)) { day in
+            calendar.dateInterval(of: .month, for: day.date)?.start
+                ?? calendar.startOfDay(for: day.date)
+        }
+
+        return grouped
+            .map { month, days in
+                HistoryMonth(month: month, days: days.sorted { $0.date > $1.date })
+            }
+            .sorted { $0.month > $1.month }
     }
 }

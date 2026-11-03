@@ -76,6 +76,28 @@ public enum TimeDisplay {
         return monthDay(date, calendar: calendar)
     }
 
+    /// §4.2-2 주간 막대의 머리줄. `이번 주` / `지난주` / `10월 19일 주`.
+    ///
+    /// 오늘·어제를 이름으로 부르는 것과 같은 이유다(`relativeDay`) — 대부분은
+    /// 이번 주나 지난주를 보는데, 거기에 날짜를 박으면 매번 계산해서 읽어야 한다.
+    public static func relativeWeek(
+        _ weekStart: Date,
+        now: Date = .now,
+        calendar: Calendar = .focus
+    ) -> String {
+        let target = calendar.dateInterval(of: .weekOfYear, for: weekStart)?.start
+            ?? calendar.startOfDay(for: weekStart)
+        let thisWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start
+            ?? calendar.startOfDay(for: now)
+
+        if target == thisWeek { return "이번 주" }
+        if let lastWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeek),
+           target == lastWeek {
+            return "지난주"
+        }
+        return "\(monthDay(target, calendar: calendar)) 주"
+    }
+
     public static func yearMonth(_ date: Date, calendar: Calendar = .focus) -> String {
         let parts = calendar.dateComponents([.year, .month], from: date)
         return "\(parts.year ?? 0)년 \(parts.month ?? 0)월"
