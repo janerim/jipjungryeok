@@ -11,8 +11,12 @@ import Foundation
 enum ReleaseNotes {
 
     /// 버전 문자열(`CFBundleShortVersionString`)에 대응하는 변경 사항.
+    ///
+    /// **키는 `MARKETING_VERSION` 과 글자 그대로 같아야 한다.** `WhatsNewStore` 가
+    /// 번들 값으로 그대로 조회하므로 `1.4` 와 `1.4.0` 은 다른 키다. 1.4.0 부터
+    /// 세 자리로 간다 — 책력과 형식을 맞췄다. 그 아래는 옛 두 자리 그대로 둔다.
     private static let entries: [String: [String]] = [
-        "1.4": [
+        "1.4.0": [
             "통계 화면에 달력이 생겼습니다. 한 달 동안 어느 날 얼마나 집중했는지 칸의 진하기로 보이고, 날짜를 누르면 그날 기록이 열립니다.",
             "주간 막대를 지난주로 넘겨 볼 수 있습니다. 전체 기록도 한 달씩 넘겨 봅니다.",
             "아이콘이 바뀌었습니다."

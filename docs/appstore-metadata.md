@@ -121,12 +121,12 @@ App Store Connect 에 그대로 붙여 넣는 텍스트다. 여기서 관리하�
 | 개인정보 처리방침 URL | `docs/privacy.md` → `https://janerim.github.io/jipjungryeok/privacy` |
 | 지원 URL (필수) | `docs/support.md` → `https://janerim.github.io/jipjungryeok/support` |
 | 마케팅 URL | 비워 둔다. 홍보용 랜딩 페이지가 없다 |
-| 버전 | `1.4` — 업로드한 빌드의 `MARKETING_VERSION` 과 같아야 한다 |
+| 버전 | `1.4.0` — 업로드한 빌드의 `MARKETING_VERSION` 과 같아야 한다 |
 | 저작권 | `2026 오정림` — © 기호는 Apple 이 붙이므로 넣지 않는다 |
 | 라우팅 앱 적용 범위 파일 | 비워 둔다. 지도·내비게이션 앱 전용이다 |
 | 앱 클립 | 쓰지 않는다 |
 
-## 이번 버전의 새로운 기능 (1.4)
+## 이번 버전의 새로운 기능 (1.4.0)
 
 > 업데이트는 이 항목이 필수다. 앱 안의 `ReleaseNotes.swift` 와 내용이 어긋나면 안 된다.
 
