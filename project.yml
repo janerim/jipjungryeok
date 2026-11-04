@@ -13,6 +13,9 @@ name: Jipjungryeok
 
 options:
   bundleIdPrefix: com.janerim
+  ## 한국어 앱이다. 비워 두면 Xcode 기본값 en 이 들어가고, 번들에 .lproj 가
+  ## 하나도 없으므로 App Store 제품 페이지의 "언어" 가 **영어**로 나간다.
+  developmentLanguage: ko
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -22,6 +25,9 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
+    ## 생성되는 Info.plist 의 CFBundleDevelopmentRegion 이 $(DEVELOPMENT_LANGUAGE) 를
+    ## 참조한다. Xcode 기본값은 en 이라 여기서 못박지 않으면 한국어 앱이 영어로 나간다.
+    DEVELOPMENT_LANGUAGE: ko
     CODE_SIGN_STYLE: Automatic
     ## 버전은 **여기서만** 고친다. Xcode GUI 에서 고치면 다음 xcodegen generate 에
     ## 날아간다 — 1.0 을 올릴 때 실제로 그랬다(project.yml 은 0.1.0 인데 스토어는 1.0).
