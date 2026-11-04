@@ -25,8 +25,11 @@ struct MonthCalendarView: View {
     private static let weekdayLabels = ["월", "화", "수", "목", "금", "토", "일"]
 
     /// 칸 높이. 책력은 표지를 넣느라 120pt 지만 여기는 숫자와 농담뿐이라 훨씬 낮다.
-    /// 44pt 면 손가락도 닿고 6줄이어도 한 화면에 들어온다.
-    private static let cellHeight: CGFloat = 44
+    ///
+    /// 44 였다가 키웠다. 맨 위 링을 들어내면서(§4.2-1) 화면 아래가 비었는데,
+    /// 거기에 뭘 더하는 대신 이미 있는 달력을 제 크기로 키웠다. 50pt 면 6줄이어도
+    /// 한 화면에 들어오고, 농담 칸이 넓어져 옅은 날이 더 또렷하다.
+    private static let cellHeight: CGFloat = 50
 
     var body: some View {
         VStack(spacing: 10) {

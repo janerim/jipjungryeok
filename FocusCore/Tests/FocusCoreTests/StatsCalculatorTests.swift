@@ -58,6 +58,7 @@ final class StatsCalculatorTests: XCTestCase {
         XCTAssertEqual(summary.weekSeconds, 2100)
         XCTAssertEqual(summary.monthSeconds, 2100)
         XCTAssertEqual(summary.weekSessionCount, 1)
+        XCTAssertEqual(summary.todaySessionCount, 1)
 
         XCTAssertEqual(TimeDisplay.hhmm(summary.todaySeconds), "00:35")
     }
@@ -71,6 +72,7 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize(sessions, now: now)
 
         XCTAssertEqual(summary.todaySeconds, 0, "종료가 오늘이어도 오늘로 잡히면 안 된다")
+        XCTAssertEqual(summary.todaySessionCount, 0, "횟수도 같은 규칙을 따른다")
         XCTAssertEqual(summary.weekSeconds, 1500, "8/19 는 같은 주(8/17~8/23)")
         XCTAssertEqual(summary.monthSeconds, 1500)
 
@@ -190,6 +192,7 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize([], now: now)
 
         XCTAssertEqual(summary.todaySeconds, 0)
+        XCTAssertEqual(summary.todaySessionCount, 0)
         XCTAssertEqual(summary.weekSeconds, 0)
         XCTAssertEqual(summary.monthSeconds, 0)
         XCTAssertEqual(summary.weekSessionCount, 0)
@@ -218,9 +221,41 @@ final class StatsCalculatorTests: XCTestCase {
         let summary = subject.summarize(sessions, now: now)
 
         XCTAssertEqual(summary.todaySeconds, 0)
+        XCTAssertEqual(summary.todaySessionCount, 0)
         XCTAssertEqual(summary.weekSeconds, 0)
         XCTAssertEqual(summary.monthSeconds, 0)
         XCTAssertEqual(summary.weekSessionCount, 0)
+    }
+
+    // MARK: - §4.2-1 오늘 횟수
+
+    /// 합계가 같아도 한 번에 한 것과 나눠 한 것은 다른 하루다.
+    /// 통계 화면 맨 위가 링을 대신하면서 이 구분을 맡는다.
+    func testTodaySessionCountSeparatesOneLongDayFromSeveralShortOnes() {
+        let once = [record(startAt: date(2026, 8, 20, 10, 0), seconds: 80 * 60)]
+        let thrice = [
+            record(startAt: date(2026, 8, 20, 9, 0), seconds: 25 * 60),
+            record(startAt: date(2026, 8, 20, 13, 0), seconds: 25 * 60),
+            record(startAt: date(2026, 8, 20, 16, 0), seconds: 30 * 60)
+        ]
+
+        XCTAssertEqual(subject.summarize(once, now: now).todaySeconds, 4800)
+        XCTAssertEqual(subject.summarize(thrice, now: now).todaySeconds, 4800)
+
+        XCTAssertEqual(subject.summarize(once, now: now).todaySessionCount, 1)
+        XCTAssertEqual(subject.summarize(thrice, now: now).todaySessionCount, 3)
+    }
+
+    /// 어제 것이 오늘 횟수에 섞이면 안 된다.
+    func testTodaySessionCountIgnoresOtherDays() {
+        let sessions = [
+            record(startAt: date(2026, 8, 19, 10, 0), seconds: 1200),
+            record(startAt: date(2026, 8, 20, 10, 0), seconds: 1200)
+        ]
+        let summary = subject.summarize(sessions, now: now)
+
+        XCTAssertEqual(summary.todaySessionCount, 1)
+        XCTAssertEqual(summary.weekSessionCount, 2)
     }
 
     // MARK: - 조회 윈도우
