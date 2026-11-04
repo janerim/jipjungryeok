@@ -79,6 +79,7 @@ public struct StatsCalculator {
 
         return StatsSummary(
             todaySeconds: secondsByDay[today] ?? 0,
+            todaySessionCount: countByDay[today] ?? 0,
             weekSeconds: total(from: weekStart),
             monthSeconds: total(from: monthStart),
             weekSessionCount: weekSessionCount,

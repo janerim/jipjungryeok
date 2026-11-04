@@ -20,6 +20,12 @@ public struct StatsSummary: Equatable, Sendable {
 
     public let todaySeconds: Int
 
+    /// 오늘 집중 횟수.
+    ///
+    /// 합계만으로는 한 번에 80분 한 것과 25분씩 세 번 한 것이 같아 보인다.
+    /// 통계 화면 맨 위가 이 둘을 구분해 준다 (§4.2-1).
+    public let todaySessionCount: Int
+
     /// 월요일 시작 기준 이번 주 (§1-1)
     public let weekSeconds: Int
 
@@ -43,6 +49,7 @@ public struct StatsSummary: Equatable, Sendable {
 
     public init(
         todaySeconds: Int,
+        todaySessionCount: Int,
         weekSeconds: Int,
         monthSeconds: Int,
         weekSessionCount: Int,
@@ -50,6 +57,7 @@ public struct StatsSummary: Equatable, Sendable {
         dailyTotals: [DailyTotal]
     ) {
         self.todaySeconds = todaySeconds
+        self.todaySessionCount = todaySessionCount
         self.weekSeconds = weekSeconds
         self.monthSeconds = monthSeconds
         self.weekSessionCount = weekSessionCount

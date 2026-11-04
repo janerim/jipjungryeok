@@ -3,9 +3,9 @@ import FocusCore
 
 /// §4.2 통계 화면 — 세로 스크롤 단일 화면.
 ///
-/// 위에서부터 오늘 링 / 이번 주 7칸 / 달력.
+/// 위에서부터 오늘 한 줄 / 주간 막대 / 달력.
 ///
-/// 셋이 서로 다른 질문에 답한다. 링은 **오늘 얼마나**, 주간 막대는 **이번 주 얼마나**,
+/// 셋이 서로 다른 질문에 답한다. 맨 줄은 **오늘 얼마나**, 막대는 **이번 주 얼마나**,
 /// 달력은 **이번 달 며칠 나왔나** 다. 달력 자리에는 최근 세션 5건이 있었는데,
 /// 그건 한 탭 거리의 기록 시트를 잘라 놓은 것이라 자리값을 못 했다.
 /// 달력은 그 자리에서 다른 질문에 답하고, 날짜를 눌러 그날로 들어가는 문도 된다.
@@ -36,9 +36,7 @@ struct StatsView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                TodayRing(seconds: store.summary.todaySeconds)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 8)
+                today
 
                 section(TimeDisplay.relativeWeek(weekAnchor), accessory: weekNav) {
                     WeekStrip(totals: week.totals)
@@ -78,6 +76,53 @@ struct StatsView: View {
         .sheet(item: $selectedDay, onDismiss: reload) { selection in
             DayRecordsSheet(date: selection.date, store: store, recorder: recorder)
         }
+    }
+
+    /// §4.2-1 오늘. 이 자리에는 지름 168pt 짜리 링이 있었다.
+    ///
+    /// 링은 본래 **목표 대비 얼마나**를 말하는 도형인데, 목표 설정을 만들지
+    /// 않으므로(규칙 5) 분모를 5시간으로 박아 둔 가짜였다. 보통 날엔 1/4 쯤 차고
+    /// 나머지는 아무 말도 하지 않았다. 게다가 오늘은 바로 아래 주간 막대의 진한
+    /// 칸으로 **같은 기준에서 한 번 더** 그려진다 — 한 화면에서 제일 넓은 자리가
+    /// 제일 적은 정보를 들고 있었다.
+    ///
+    /// 그래서 숫자 한 줄로 줄이고 그 공간을 막대에 넘겼다. 위젯은 링을 그대로
+    /// 쓴다(§8.1) — 작은 정사각형과 긴 스크롤은 다른 그릇이고, 숫자도 기준도
+    /// 같아서 둘이 다른 말을 하지는 않는다.
+    ///
+    /// **주를 넘겨도 이 줄은 안 변한다.** 그래서 주간 섹션 바깥에 둔다 — 안에
+    /// 넣으면 지난주를 보는 동안 오늘이 그 주의 값처럼 읽힌다.
+    private var today: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("오늘")
+                .font(Typography.statCaption)
+                .foregroundStyle(Palette.inkSecondary)
+
+            Text(TimeDisplay.hhmm(store.summary.todaySeconds))
+                .font(Typography.statValue)
+                .foregroundStyle(Palette.ink)
+                .monospacedDigit()
+                .contentTransition(.numericText())
+
+            Spacer(minLength: 8)
+
+            // 합계만으로는 한 번에 80분 한 날과 25분씩 세 번 한 날이 같아 보인다.
+            // 0회일 때는 적지 않는다 — 빈 날에 "0회" 를 박아 두면 꾸짖는 투가 된다.
+            if store.summary.todaySessionCount > 0 {
+                Text("\(store.summary.todaySessionCount)회")
+                    .font(Typography.statCaption)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .monospacedDigit()
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(todayAccessibilityLabel)
+    }
+
+    private var todayAccessibilityLabel: String {
+        let time = TimeDisplay.hourMinuteText(store.summary.todaySeconds)
+        guard store.summary.todaySessionCount > 0 else { return "오늘 집중 시간 없음" }
+        return "오늘 집중 시간 \(time), \(store.summary.todaySessionCount)회"
     }
 
     /// 자정을 넘겼거나 다른 화면에서 세션이 끝났을 수 있다.

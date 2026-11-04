@@ -15,8 +15,12 @@ struct WeekStrip: View {
     /// `weekdayTotals` 는 월요일이 0번임이 집계에서 보장된다(테스트로 못박음).
     private static let labels = ["월", "화", "수", "목", "금", "토", "일"]
 
-    /// 위젯은 세로가 좁아서 낮게 그린다.
-    var barHeight: CGFloat = 76
+    /// 기본값은 통계 화면 기준, 위젯은 세로가 좁아서 부를 때 낮게 준다.
+    ///
+    /// 76 이었다가 키웠다. 위에 있던 오늘 링을 들어내면서(§4.2-1) 그 공간이
+    /// 이리로 왔다. 막대가 높아질수록 **빈 날이 더 또렷하게 비어 보인다** —
+    /// 그게 이 그림의 목적이다.
+    var barHeight: CGFloat = 92
     var showsLabels: Bool = true
 
     private let calendar = Calendar.focus
